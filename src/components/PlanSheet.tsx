@@ -1,5 +1,5 @@
 import { formatDate } from '../dates'
-import { isFiller, KIND_ICONS, PUB_KINDS, STATUSES } from '../types'
+import { isFiller, pubIcon, PUB_KINDS, STATUSES } from '../types'
 import { Thumb } from './Thumb'
 import type { Pub } from '../types'
 import { Sheet } from './Sheet'
@@ -30,7 +30,7 @@ export function PlanSheet({
           <p className="muted">Publications en réserve :</p>
           {reserve.map((p) => (
             <article key={p.id} className="card with-thumb" onClick={() => onPick(p)}>
-              <Thumb urls={p.photos} icon={KIND_ICONS[p.kind]} />
+              <Thumb urls={p.photos} icon={pubIcon(p)} />
               <div className="card-body">
                 <div className="card-top">
                   <strong>{p.displayTitle}</strong>
@@ -44,7 +44,7 @@ export function PlanSheet({
       ) : (
         <p className="muted">Aucune publication en réserve.</p>
       )}
-      <button className="link" onClick={onNewMakeup}>+ Nouveau makeup ou récap ce jour-là</button>
+      <button className="link" onClick={onNewMakeup}>+ Nouveau contenu ce jour-là</button>
     </Sheet>
   )
 }

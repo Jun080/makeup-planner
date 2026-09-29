@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { daysUntil, toISO, todayISO } from '../dates'
-import { KIND_ICONS, PUB_KINDS, STATUSES, STATUS_ORDER } from '../types'
+import { toISO, todayISO } from '../dates'
+import { STATUSES, STATUS_ORDER } from '../types'
 import type { Pub, Status } from '../types'
 import { PubCard } from './PubCard'
-import { Thumb } from './Thumb'
+import { isLate, MiniThumb, PubLine } from './PubBits'
 
 const WEEKDAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
 const VIEW_KEY = 'calendar-view'
@@ -30,8 +30,6 @@ function addDays(d: Date, n: number) {
   r.setDate(r.getDate() + n)
   return r
 }
-
-const isLate = (p: Pub) => p.status !== 'publie' && p.date !== null && daysUntil(p.date) < 0
 
 export function CalendarView({
   pubs,
@@ -168,33 +166,7 @@ function ViewSwitch({ view, onChange }: { view: View; onChange: (v: View) => voi
   )
 }
 
-/** Une publication sur une ligne : photo, type, titre, étape. */
-function PubLine({ pub, onOpen }: { pub: Pub; onOpen: () => void }) {
-  return (
-    <button className={`pub-line status-border-${pub.status} ${isLate(pub) ? 'late' : ''}`} onClick={onOpen}>
-      <MiniThumb pub={pub} />
-      <span className="pub-line-text">
-        <strong>{pub.displayTitle}</strong>
-        <small>
-          {PUB_KINDS[pub.kind]}
-          {isLate(pub) && ' · en retard'}
-        </small>
-      </span>
-      <span className={`badge status-${pub.status}`}>{STATUSES[pub.status]}</span>
-    </button>
-  )
-}
-
-/** Miniature ronde : photo du makeup (ou icône du type), cerclée de la couleur de l'étape. */
-function MiniThumb({ pub }: { pub: Pub }) {
-  return (
-    <span className={`mini-thumb ring-${pub.status}`} title={`${PUB_KINDS[pub.kind]} · ${pub.displayTitle}`}>
-      <Thumb urls={pub.photos} icon={KIND_ICONS[pub.kind]} className="mini-inner" />
-    </span>
-  )
-}
-
-function Legend() {
+export function Legend() {
   return (
     <div className="legend">
       {STATUS_ORDER.map((s) => (

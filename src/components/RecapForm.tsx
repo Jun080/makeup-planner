@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { deleteRecap, saveRecap } from '../data'
 import { formatDate, toISO } from '../dates'
-import { STATUSES, STATUS_ORDER } from '../types'
+import { CATEGORY_INFO, STATUSES, STATUS_ORDER } from '../types'
 import type { Makeup, Recap, Status } from '../types'
 import { Thumb } from './Thumb'
 
@@ -75,7 +75,7 @@ export function RecapForm({
   }
 
   async function remove() {
-    if (!initial.id || !confirm('Supprimer ce récap ? (les makeups sont conservés)')) return
+    if (!initial.id || !confirm('Supprimer ce récap ? (les contenus sont conservés)')) return
     await deleteRecap(initial.id)
     onSaved()
   }
@@ -100,16 +100,16 @@ export function RecapForm({
       <p className="muted">Laisse la date vide pour garder le récap en réserve.</p>
 
       <fieldset>
-        <legend>Makeups dans le récap ({selected.length})</legend>
+        <legend>Contenus dans le récap ({selected.length})</legend>
         <div className="row recap-filter">
           <label>Mois<input type="month" value={month} onChange={(e) => changeMonth(e.target.value)} disabled={showAll} /></label>
-          <label className="check"><input type="checkbox" checked={showAll} onChange={(e) => setShowAll(e.target.checked)} /> Tous les makeups</label>
+          <label className="check"><input type="checkbox" checked={showAll} onChange={(e) => setShowAll(e.target.checked)} /> Tout afficher</label>
         </div>
         <div className="recap-picker">
           {list.map((m) => (
             <label key={m.id} className={`recap-item ${selected.includes(m.id) ? 'on' : ''}`}>
               <input type="checkbox" checked={selected.includes(m.id)} onChange={() => toggle(m.id)} hidden />
-              <Thumb urls={[m.photo_url]} />
+              <Thumb urls={[m.photo_url]} icon={CATEGORY_INFO[m.category].icon} />
               <span>
                 <strong>{m.title}</strong>
                 <small>{formatDate(m.date)}</small>
@@ -117,7 +117,7 @@ export function RecapForm({
               <span className="recap-check">{selected.includes(m.id) ? '✓' : ''}</span>
             </label>
           ))}
-          {!list.length && <p className="muted">Aucun makeup ce mois-ci.</p>}
+          {!list.length && <p className="muted">Rien ce mois-ci.</p>}
         </div>
       </fieldset>
 

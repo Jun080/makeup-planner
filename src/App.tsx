@@ -3,12 +3,12 @@ import type { Session } from '@supabase/supabase-js'
 import { isConfigured, supabase } from './supabase'
 import { deleteRow, fetchAll, updatePublication } from './data'
 import { enablePush, pushSupported, syncPushSubscription } from './push'
-import { allPubs } from './types'
-import type { Idea, Makeup, Product, Pub, Publication, Recap, Status } from './types'
+import { allPubs, CATEGORY_INFO } from './types'
+import type { Category, Idea, Makeup, Product, Pub, Publication, Recap, Status } from './types'
 import { Login } from './components/Login'
 import { Sheet } from './components/Sheet'
 import { MakeupForm, type MakeupDraft } from './components/MakeupForm'
-import { Today } from './components/Today'
+import { Today, type Move } from './components/Today'
 import { CalendarView } from './components/CalendarView'
 import { Pipeline } from './components/Pipeline'
 import { Search } from './components/Search'
@@ -16,6 +16,12 @@ import { Products } from './components/Products'
 import { Ideas } from './components/Ideas'
 import { PlanSheet } from './components/PlanSheet'
 import { RecapForm, type RecapDraft } from './components/RecapForm'
+
+const NEW_CHOICES: { category: Category; hint: string }[] = [
+  { category: 'makeup', hint: 'Un look, avec ses tutos, photos et vidéos' },
+  { category: 'swatch', hint: 'Une palette ou des produits swatchés en vidéo' },
+  { category: 'unboxing', hint: 'Un colis, un calendrier de l’avent…' },
+]
 
 type Tab = 'today' | 'calendar' | 'pipeline' | 'search' | 'products' | 'ideas'
 
@@ -93,6 +99,7 @@ export default function App() {
   }
 
   const advance = (pub: Pub, status: Status) => patchPub(pub, { status })
+  const moveAll = (moves: Move[]) => Promise.all(moves.map((m) => patchPub(m.pub, { date: m.date })))
 
   async function enableNotifications() {
     try {
@@ -134,7 +141,9 @@ export default function App() {
 
       <main>
         {error && <p className="error">{error}</p>}
-        {tab === 'today' && <Today pubs={pubs} onOpen={openPub} onAdvance={advance} onPlan={setPlanDate} />}
+        {tab === 'today' && (
+          <Today pubs={pubs} onOpen={openPub} onAdvance={advance} onPlan={setPlanDate} onMove={moveAll} />
+        )}
         {tab === 'calendar' && <CalendarView pubs={pubs} onOpen={openPub} onAdvance={advance} onPlan={setPlanDate} />}
         {tab === 'pipeline' && <Pipeline pubs={pubs} onOpen={openPub} onAdvance={advance} />}
         {tab === 'search' && <Search makeups={makeups} products={products} onOpen={open} />}
@@ -182,15 +191,22 @@ export default function App() {
       {choosing && (
         <Sheet title="Ajouter" onClose={() => setChoosing(null)}>
           <div className="chooser">
-            <button
-              onClick={() => {
-                setDraft(choosing.date ? { publications: [{ kind: 'tuto', date: choosing.date, status: 'realise' }] } : {})
-                setChoosing(null)
-              }}
-            >
-              <span>💄</span>
-              <span>Nouveau makeup<small>Un look, avec ses tutos, photos et vidéos</small></span>
-            </button>
+            {NEW_CHOICES.map(({ category, hint }) => (
+              <button
+                key={category}
+                onClick={() => {
+                  const kind = category === 'makeup' ? 'tuto' : 'video'
+                  setDraft({
+                    category,
+                    ...(choosing.date && { publications: [{ kind, date: choosing.date, status: 'realise' }] }),
+                  })
+                  setChoosing(null)
+                }}
+              >
+                <span>{CATEGORY_INFO[category].icon}</span>
+                <span>{CATEGORY_INFO[category].newTitle}<small>{hint}</small></span>
+              </button>
+            ))}
             <button
               onClick={() => {
                 setRecapDraft(choosing.date ? { date: choosing.date } : {})
@@ -198,7 +214,7 @@ export default function App() {
               }}
             >
               <span>🎞️</span>
-              <span>Nouveau récap<small>Une vidéo qui regroupe plusieurs makeups</small></span>
+              <span>Nouveau récap<small>Une vidéo qui regroupe plusieurs contenus</small></span>
             </button>
           </div>
         </Sheet>
@@ -219,7 +235,7 @@ export default function App() {
       )}
 
       {draft && (
-        <Sheet title={draft.id ? 'Modifier' : 'Nouveau makeup'} onClose={() => setDraft(null)}>
+        <Sheet title={draft.id ? 'Modifier' : CATEGORY_INFO[draft.category ?? 'makeup'].newTitle} onClose={() => setDraft(null)}>
           <MakeupForm
             initial={draft}
             products={products}

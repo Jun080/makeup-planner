@@ -1,5 +1,5 @@
 import { daysUntil, formatDate } from '../dates'
-import { KIND_ICONS, PUB_KINDS, STATUSES, STATUS_ORDER } from '../types'
+import { CATEGORIES, CATEGORY_INFO, pubIcon, PUB_KINDS, STATUSES, STATUS_ORDER } from '../types'
 import { Thumb } from './Thumb'
 import type { Pub, Status } from '../types'
 
@@ -27,7 +27,7 @@ export function PubCard({
 
   return (
     <article className={`card with-thumb ${urgency}`} onClick={onOpen}>
-      <Thumb urls={pub.photos} icon={KIND_ICONS[pub.kind]} />
+      <Thumb urls={pub.photos} icon={pubIcon(pub)} />
       <div className="card-body">
         <div className="card-top">
           <strong>{pub.displayTitle}</strong>
@@ -36,7 +36,10 @@ export function PubCard({
         <div className="card-meta">
           <span>{PUB_KINDS[pub.kind]}</span>
           <span>{when}</span>
-          {pub.kind === 'recap' && <span>{pub.makeups.length} makeup{pub.makeups.length > 1 ? 's' : ''}</span>}
+          {pub.kind === 'recap' && <span>{pub.makeups.length} contenu{pub.makeups.length > 1 ? 's' : ''}</span>}
+            {pub.kind !== 'recap' && pub.makeups[0] && pub.makeups[0].category !== 'makeup' && (
+              <span>{CATEGORY_INFO[pub.makeups[0].category].icon} {CATEGORIES[pub.makeups[0].category]}</span>
+            )}
             {pub.kind !== 'recap' && pub.makeups[0]?.is_collab && (
               <span>Collab{pub.makeups[0].collab_with ? ` ${pub.makeups[0].collab_with}` : ''}</span>
             )}

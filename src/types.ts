@@ -58,9 +58,48 @@ export const PUB_KINDS: Record<PubKind, string> = {
 
 export const CATEGORIES: Record<Category, string> = {
   makeup: 'Makeup',
-  unboxing: 'Unboxing',
   swatch: 'Swatch',
+  unboxing: 'Unboxing',
   autre: 'Autre',
+}
+
+/** Ce qui change selon le type de contenu : un swatch ou un unboxing n'est pas un makeup. */
+export const CATEGORY_INFO: Record<
+  Category,
+  { icon: string; newTitle: string; placeholder: string; products: string; withTuto: boolean; defaultKinds: MakeupPubKind[] }
+> = {
+  makeup: {
+    icon: '💄',
+    newTitle: 'Nouveau makeup',
+    placeholder: 'ex : Look Halloween squelette',
+    products: 'Produits utilisés',
+    withTuto: true,
+    defaultKinds: [],
+  },
+  swatch: {
+    icon: '🎨',
+    newTitle: 'Nouveau swatch',
+    placeholder: 'ex : Swatch palette Emerald Obsessions',
+    products: 'Produits swatchés',
+    withTuto: false,
+    defaultKinds: ['video'],
+  },
+  unboxing: {
+    icon: '📦',
+    newTitle: 'Nouvel unboxing',
+    placeholder: 'ex : Calendrier de l’avent Huda, colis Glisten…',
+    products: 'Produits reçus',
+    withTuto: false,
+    defaultKinds: ['video'],
+  },
+  autre: {
+    icon: '✨',
+    newTitle: 'Nouveau contenu',
+    placeholder: 'ex : Get ready with me',
+    products: 'Produits',
+    withTuto: true,
+    defaultKinds: [],
+  },
 }
 
 export const STATUSES: Record<Status, string> = {
@@ -78,6 +117,12 @@ export function productLabel(p: Product) {
 }
 
 export const KIND_ICONS: Record<PubKind, string> = { tuto: '🎬', photo: '📸', video: '🎥', recap: '🎞️' }
+
+/** Icône à afficher quand il n'y a pas de photo : le type de contenu (swatch, unboxing), sinon le type de publication. */
+export function pubIcon(p: Pub) {
+  const c = p.kind !== 'recap' ? p.makeups[0]?.category : undefined
+  return c && c !== 'makeup' ? CATEGORY_INFO[c].icon : KIND_ICONS[p.kind]
+}
 
 /** Photo ou vidéo : les "jokers" qui comblent les jours vides. */
 export const isFiller = (p: Publication) => p.kind === 'photo' || p.kind === 'video'

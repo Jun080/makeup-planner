@@ -1,19 +1,19 @@
 import { formatDate } from '../dates'
-import { CATEGORIES, PUB_KINDS, STATUSES } from '../types'
+import { CATEGORIES, CATEGORY_INFO, PUB_KINDS, STATUSES } from '../types'
 import { Thumb } from './Thumb'
 import type { Makeup } from '../types'
 
 export function MakeupCard({ makeup, onOpen }: { makeup: Makeup; onOpen: () => void }) {
   return (
     <article className="card with-thumb" onClick={onOpen}>
-      <Thumb urls={[makeup.photo_url]} />
+      <Thumb urls={[makeup.photo_url]} icon={CATEGORY_INFO[makeup.category].icon} />
       <div className="card-body">
         <div className="card-top">
           <strong>{makeup.title}</strong>
           {makeup.category !== 'makeup' && <span className="badge">{CATEGORIES[makeup.category]}</span>}
         </div>
         <div className="card-meta">
-          <span>Réalisé le {formatDate(makeup.date)}</span>
+          <span>Tourné le {formatDate(makeup.date)}</span>
           {makeup.is_collab && <span>Collab{makeup.collab_with ? ` ${makeup.collab_with}` : ''}</span>}
         </div>
         {makeup.publications.length > 0 && (

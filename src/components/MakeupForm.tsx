@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { saveMakeup, deleteRow, deletePhoto, uploadPhoto, type PublicationDraft } from '../data'
 import { daysUntil, todayISO } from '../dates'
-import { CATEGORIES, PUB_KINDS, STATUSES, STATUS_ORDER, productLabel } from '../types'
+import { CATEGORIES, CATEGORY_INFO, PUB_KINDS, STATUSES, STATUS_ORDER, productLabel } from '../types'
 import type { Category, Makeup, MakeupPubKind, Product, Status } from '../types'
 import { ProductForm } from './ProductForm'
 import { Sheet } from './Sheet'
@@ -32,9 +32,18 @@ export function MakeupForm({
   const [isCollab, setIsCollab] = useState(initial.is_collab ?? false)
   const [collabWith, setCollabWith] = useState(initial.collab_with ?? '')
   const [notes, setNotes] = useState(initial.notes ?? '')
-  const [pubs, setPubs] = useState<PublicationDraft[]>(
-    (initial.publications ?? []).map(({ id, kind, date, status }) => ({ id, kind, date, status })),
+  const info = CATEGORY_INFO[category]
+  const defaultPubs = (c: Category): PublicationDraft[] =>
+    CATEGORY_INFO[c].defaultKinds.map((kind) => ({ kind, date: null, status: 'realise' }))
+  const [pubs, setPubs] = useState<PublicationDraft[]>(() =>
+    initial.publications
+      ? initial.publications.map(({ id, kind, date, status }) => ({ id, kind, date, status }))
+      : initial.id
+        ? []
+        : defaultPubs(initial.category ?? 'makeup'),
   )
+  // Tant que les publications n'ont pas été modifiées, changer de type remet celles par défaut
+  const [pubsTouched, setPubsTouched] = useState(Boolean(initial.id || initial.publications))
   const [productIds, setProductIds] = useState<string[]>(initial.product_ids ?? [])
   const [productQuery, setProductQuery] = useState('')
   const [addingProduct, setAddingProduct] = useState(false)
@@ -63,13 +72,20 @@ export function MakeupForm({
   }
 
   function addPub(kind: MakeupPubKind) {
-    // Makeup pas encore réalisé (date future) → "À faire", sinon "Réalisé"
+    // Contenu pas encore tourné (date future) → "À faire", sinon "Réalisé"
     const status: Status = daysUntil(date) > 0 ? 'a_faire' : 'realise'
     setPubs([...pubs, { kind, date: null, status }])
+    setPubsTouched(true)
   }
 
   function updatePub(i: number, patch: Partial<PublicationDraft>) {
     setPubs(pubs.map((p, j) => (j === i ? { ...p, ...patch } : p)))
+    setPubsTouched(true)
+  }
+
+  function changeCategory(c: Category) {
+    setCategory(c)
+    if (!pubsTouched) setPubs(defaultPubs(c))
   }
 
   async function submit(e: React.FormEvent) {
@@ -102,7 +118,7 @@ export function MakeupForm({
   }
 
   async function remove() {
-    if (!initial.id || !confirm('Supprimer ce makeup et ses publications ?')) return
+    if (!initial.id || !confirm('Supprimer ce contenu et ses publications ?')) return
     await deleteRow('makeups', initial.id)
     if (initial.photo_path) await deletePhoto(initial.photo_path)
     onSaved()
@@ -110,10 +126,18 @@ export function MakeupForm({
 
   return (
     <form className="form" onSubmit={submit}>
-      <label>Titre<input value={title} onChange={(e) => setTitle(e.target.value)} required placeholder="ex : Look Halloween squelette" /></label>
+      <div className="chips">
+        {(Object.keys(CATEGORIES) as Category[]).map((c) => (
+          <button type="button" key={c} className={`chip ${category === c ? 'on' : ''}`} onClick={() => changeCategory(c)}>
+            {CATEGORY_INFO[c].icon} {CATEGORIES[c]}
+          </button>
+        ))}
+      </div>
+
+      <label>Titre<input value={title} onChange={(e) => setTitle(e.target.value)} required placeholder={info.placeholder} /></label>
 
       <fieldset>
-        <legend>Photo du makeup</legend>
+        <legend>Photo</legend>
         {preview && <img className="photo-preview" src={preview} alt="" />}
         <div className="chips">
           <label className="chip file-chip">
@@ -144,18 +168,7 @@ export function MakeupForm({
         </div>
       </fieldset>
 
-      <fieldset>
-        <legend>Type</legend>
-        <div className="chips">
-          {(Object.keys(CATEGORIES) as Category[]).map((c) => (
-            <button type="button" key={c} className={`chip ${category === c ? 'on' : ''}`} onClick={() => setCategory(c)}>
-              {CATEGORIES[c]}
-            </button>
-          ))}
-        </div>
-      </fieldset>
-
-      <label>Date de réalisation<input type="date" value={date} onChange={(e) => setDate(e.target.value)} required /></label>
+      <label>Date de tournage<input type="date" value={date} onChange={(e) => setDate(e.target.value)} required /></label>
 
       <label className="check"><input type="checkbox" checked={isCollab} onChange={(e) => setIsCollab(e.target.checked)} /> Collab</label>
       {isCollab && (
@@ -178,19 +191,19 @@ export function MakeupForm({
             <select value={p.status} onChange={(e) => updatePub(i, { status: e.target.value as Status })}>
               {STATUS_ORDER.map((s) => <option key={s} value={s}>{STATUSES[s]}</option>)}
             </select>
-            <button type="button" className="icon-btn" onClick={() => setPubs(pubs.filter((_, j) => j !== i))} aria-label="Retirer">✕</button>
+            <button type="button" className="icon-btn" onClick={() => { setPubs(pubs.filter((_, j) => j !== i)); setPubsTouched(true) }} aria-label="Retirer">✕</button>
           </div>
         ))}
         <p className="muted">Laisse la date vide pour garder la publication en réserve.</p>
         <div className="chips">
-          <button type="button" className="chip" onClick={() => addPub('tuto')}>+ {PUB_KINDS.tuto}</button>
+          {info.withTuto && <button type="button" className="chip" onClick={() => addPub('tuto')}>+ {PUB_KINDS.tuto}</button>}
           <button type="button" className="chip" onClick={() => addPub('photo')}>+ {PUB_KINDS.photo}</button>
           <button type="button" className="chip" onClick={() => addPub('video')}>+ {PUB_KINDS.video}</button>
         </div>
       </fieldset>
 
       <fieldset>
-        <legend>Produits utilisés ({productIds.length})</legend>
+        <legend>{info.products} ({productIds.length})</legend>
         <input placeholder="Rechercher un produit…" value={productQuery} onChange={(e) => setProductQuery(e.target.value)} />
         <div className="product-picker">
           {filteredProducts.map((p) => (
