@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { isConfigured, supabase } from './supabase'
 import { deleteRow, fetchAll, updatePublication } from './data'
-import { notifyIfNeeded } from './reminders'
+import { enablePush, pushSupported, syncPushSubscription } from './push'
 import { allPubs } from './types'
 import type { Idea, Makeup, Product, Pub, Publication, Status } from './types'
 import { Login } from './components/Login'
@@ -37,7 +37,7 @@ export default function App() {
   const [draft, setDraft] = useState<(MakeupDraft & { fromIdea?: string }) | null>(null)
   const [planDate, setPlanDate] = useState<string | null>(null)
   const [notifPermission, setNotifPermission] = useState(
-    'Notification' in window ? Notification.permission : 'denied',
+    pushSupported() ? Notification.permission : 'denied',
   )
 
   useEffect(() => {
@@ -61,7 +61,9 @@ export default function App() {
 
   useEffect(() => {
     if (!session) return
-    reload().then((data) => data && notifyIfNeeded(data.makeups))
+    reload()
+    // Réenregistre ce téléphone pour les notifications (si déjà autorisé)
+    syncPushSubscription().catch((err) => console.warn('Notifications :', err))
   }, [session, reload])
 
   async function patchPub(pub: Pub, patch: Partial<Pick<Publication, 'status' | 'date'>>) {
@@ -84,9 +86,11 @@ export default function App() {
   const advance = (pub: Pub, status: Status) => patchPub(pub, { status })
 
   async function enableNotifications() {
-    const p = await Notification.requestPermission()
-    setNotifPermission(p)
-    if (p === 'granted') notifyIfNeeded(makeups)
+    try {
+      setNotifPermission(await enablePush())
+    } catch (err) {
+      setError(`Notifications : ${(err as Error).message}`)
+    }
   }
 
   if (!isConfigured) {
@@ -110,7 +114,7 @@ export default function App() {
         <h1>{TABS.find((t) => t.id === tab)?.label}</h1>
         <div>
           {notifPermission === 'default' && (
-            <button className="icon-btn" onClick={enableNotifications} title="Activer les rappels">🔔</button>
+            <button className="icon-btn" onClick={enableNotifications} title="Activer les notifications">🔔</button>
           )}
           <button className="icon-btn" onClick={() => supabase.auth.signOut()} title="Se déconnecter">⎋</button>
         </div>

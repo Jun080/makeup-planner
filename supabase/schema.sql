@@ -96,3 +96,18 @@ create policy "own makeup photos" on storage.objects
   for all to authenticated
   using (bucket_id = 'makeup-photos' and (storage.foldername(name))[1] = auth.uid()::text)
   with check (bucket_id = 'makeup-photos' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- ---------- Téléphones abonnés aux notifications ----------
+create table if not exists public.push_subscriptions (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null default auth.uid() references auth.users on delete cascade,
+  endpoint    text not null unique,
+  p256dh      text not null,
+  auth        text not null,
+  created_at  timestamptz not null default now()
+);
+
+alter table public.push_subscriptions enable row level security;
+drop policy if exists "own rows" on public.push_subscriptions;
+create policy "own rows" on public.push_subscriptions
+  for all using (user_id = auth.uid()) with check (user_id = auth.uid());

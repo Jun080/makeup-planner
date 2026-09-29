@@ -1,6 +1,6 @@
 // Service worker minimal : met en cache l'appli pour qu'elle s'ouvre vite.
 // Les données (Supabase) passent toujours par le réseau.
-const CACHE = 'makeup-planner-v1'
+const CACHE = 'makeup-planner-v2'
 
 self.addEventListener('install', () => self.skipWaiting())
 self.addEventListener('activate', (e) => {
@@ -25,7 +25,23 @@ self.addEventListener('fetch', (e) => {
   )
 })
 
+// Notification envoyée par le serveur (résumé du matin / rappel du soir)
+self.addEventListener('push', (e) => {
+  const data = e.data ? e.data.json() : {}
+  e.waitUntil(
+    self.registration.showNotification(data.title || '💄 Makeup Planner', {
+      body: data.body || '',
+      icon: 'icon-192.png',
+      tag: data.tag,
+      data: { url: data.url || './' },
+    }),
+  )
+})
+
 self.addEventListener('notificationclick', (e) => {
   e.notification.close()
-  e.waitUntil(self.clients.matchAll({ type: 'window' }).then((cs) => (cs[0] ? cs[0].focus() : self.clients.openWindow('./'))))
+  const url = e.notification.data?.url || './'
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window' }).then((cs) => (cs[0] ? cs[0].focus() : self.clients.openWindow(url))),
+  )
 })

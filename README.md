@@ -66,8 +66,15 @@ npm run dev
 
 Puis touche 🔔 en haut de l'appli pour autoriser les rappels.
 
-## À savoir sur les rappels
+## Notifications
 
-Les rappels (aujourd'hui, J-1, J-2, retards) s'affichent sur l'accueil et en notification
-**quand tu ouvres l'appli** (une fois par jour). Une notification qui arrive toute seule, appli fermée,
-demande un petit serveur de push (Supabase Edge Function + tâche planifiée) — possible dans une V2.
+- **8h15** : résumé du jour (à poster aujourd'hui, à monter sur CapCut, retards, jours vides)
+- **20h15** : ce qui doit être posté demain, et si c'est prêt
+
+Fonctionnement : l'Edge Function [`supabase/functions/daily-push`](supabase/functions/daily-push/index.ts)
+est appelée toutes les heures par `pg_cron` et n'envoie qu'à 8h et 20h (heure de Paris).
+Sur iPhone, les notifications ne marchent que dans l'appli **installée sur l'écran d'accueil**.
+
+Mise en place : [`migration_004_push.sql`](supabase/migration_004_push.sql), déploiement de la fonction
+(JWT désactivé), secrets `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `CRON_SECRET`, puis la tâche planifiée
+(`secrets/cron.sql`, fichier local non versionné).
