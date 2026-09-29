@@ -1,20 +1,20 @@
 import { useState } from 'react'
 import { toISO, todayISO } from '../dates'
-import type { Makeup, Status } from '../types'
-import { MakeupCard } from './MakeupCard'
+import type { Pub, Status } from '../types'
+import { PubCard } from './PubCard'
 
 const WEEKDAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
 
 export function CalendarView({
-  makeups,
+  pubs,
   onOpen,
   onAdvance,
-  onAddOnDate,
+  onPlan,
 }: {
-  makeups: Makeup[]
-  onOpen: (m: Makeup) => void
-  onAdvance: (m: Makeup, s: Status) => void
-  onAddOnDate: (iso: string) => void
+  pubs: Pub[]
+  onOpen: (p: Pub) => void
+  onAdvance: (p: Pub, s: Status) => void
+  onPlan: (iso: string) => void
 }) {
   const [month, setMonth] = useState(() => {
     const d = new Date()
@@ -22,8 +22,8 @@ export function CalendarView({
   })
   const [selected, setSelected] = useState(todayISO())
 
-  const byDate = new Map<string, Makeup[]>()
-  for (const m of makeups) byDate.set(m.date, [...(byDate.get(m.date) ?? []), m])
+  const byDate = new Map<string, Pub[]>()
+  for (const p of pubs) if (p.date) byDate.set(p.date, [...(byDate.get(p.date) ?? []), p])
 
   // Grille commençant le lundi
   const offset = (month.getDay() + 6) % 7
@@ -53,7 +53,9 @@ export function CalendarView({
             >
               {Number(iso.slice(8))}
               <span className="dots">
-                {(byDate.get(iso) ?? []).slice(0, 4).map((m) => <i key={m.id} className={`dot status-${m.status}`} />)}
+                {(byDate.get(iso) ?? []).slice(0, 4).map((p) => (
+                  <i key={p.id} className={`dot status-${p.status} ${p.kind === 'tuto' ? 'tuto' : ''}`} />
+                ))}
               </span>
             </button>
           ) : (
@@ -61,14 +63,15 @@ export function CalendarView({
           ),
         )}
       </div>
+      <p className="muted">■ carré = tuto · ● rond = photo / vidéo · couleur = étape</p>
       <section>
         <h2>
           {new Date(selected + 'T00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
         </h2>
-        {dayList.map((m) => (
-          <MakeupCard key={m.id} makeup={m} onOpen={() => onOpen(m)} onAdvance={(s) => onAdvance(m, s)} />
+        {dayList.map((p) => (
+          <PubCard key={p.id} pub={p} onOpen={() => onOpen(p)} onAdvance={(s) => onAdvance(p, s)} />
         ))}
-        <button className="link" onClick={() => onAddOnDate(selected)}>+ Ajouter ce jour-là</button>
+        <button className="link" onClick={() => onPlan(selected)}>+ Planifier ce jour-là</button>
       </section>
     </div>
   )

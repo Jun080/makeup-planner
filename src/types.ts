@@ -1,6 +1,6 @@
-export type Format = 'photo' | 'video' | 'transition'
 export type Category = 'makeup' | 'unboxing' | 'swatch' | 'autre'
 export type Status = 'a_faire' | 'realise' | 'montage' | 'pret' | 'publie'
+export type PubKind = 'tuto' | 'photo' | 'video'
 
 export interface Product {
   id: string
@@ -11,19 +11,30 @@ export interface Product {
   is_pr: boolean
 }
 
+export interface Publication {
+  id: string
+  makeup_id: string
+  kind: PubKind
+  date: string | null // YYYY-MM-DD, null = en réserve
+  status: Status
+}
+
 export interface Makeup {
   id: string
   title: string
   category: Category
-  formats: Format[]
-  is_tuto: boolean
-  date: string // YYYY-MM-DD
+  date: string // date de réalisation
   is_collab: boolean
   collab_with: string | null
-  status: Status
   notes: string | null
+  photo_path: string | null // chemin dans Supabase Storage
+  photo_url: string | null // lien temporaire pour l'afficher (calculé, pas stocké)
   product_ids: string[]
+  publications: Publication[]
 }
+
+/** Publication avec son makeup, pour l'affichage. */
+export type Pub = Publication & { makeup: Makeup }
 
 export interface Idea {
   id: string
@@ -32,10 +43,10 @@ export interface Idea {
   created_at: string
 }
 
-export const FORMATS: Record<Format, string> = {
-  photo: 'Photos',
-  video: 'Vidéos',
-  transition: 'Transitions',
+export const PUB_KINDS: Record<PubKind, string> = {
+  tuto: '🎬 Tuto',
+  photo: '📸 Photo',
+  video: '🎥 Vidéo',
 }
 
 export const CATEGORIES: Record<Category, string> = {
@@ -57,4 +68,8 @@ export const STATUS_ORDER: Status[] = ['a_faire', 'realise', 'montage', 'pret', 
 
 export function productLabel(p: Product) {
   return [p.brand, p.product, p.name, p.color].filter(Boolean).join(' · ')
+}
+
+export function allPubs(makeups: Makeup[]): Pub[] {
+  return makeups.flatMap((m) => m.publications.map((p) => ({ ...p, makeup: m })))
 }

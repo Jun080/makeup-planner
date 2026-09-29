@@ -5,10 +5,15 @@ Appli web installable sur téléphone (PWA), données dans Supabase, hébergée 
 
 ## Ce que fait l'appli
 
-- **Accueil** : rappels du jour, 🚨 urgents (J-1 / J-2), en retard, cette semaine
-- **Calendrier** : vue mois, points colorés par étape, ajout sur un jour précis
-- **Pipeline** : À faire → Réalisé → Montage → Prêt → Publié (bouton « → étape suivante » sur chaque carte)
-- **Recherche** : filtres par couleur, marque, type (makeup / unboxing / swatch, photos / vidéos / transitions, tuto) et collab
+Un **makeup** (le look, réalisé une fois, avec sa photo et ses produits) contient des **publications** :
+🎬 tuto, 📸 photo ou 🎥 vidéo. Chaque publication a sa propre date et sa propre étape.
+Une publication sans date est **en réserve** : parfaite pour combler un jour vide entre deux tutos.
+
+- **Accueil** : 🚨 urgents (J-1 / J-2), aujourd'hui, en retard, jours vides de la semaine
+  (touche un jour pour y placer une publication en réserve), photos & vidéos prêtes à caser
+- **Calendrier** : vue mois des publications (■ tuto, ● photo / vidéo, couleur = étape)
+- **Pipeline** : À faire → Réalisé → Montage → Prêt → Publié, par publication
+- **Recherche** : makeups filtrés par couleur, marque, type (makeup / unboxing / swatch, avec tuto / photo / vidéo) et collab
 - **Produits** : marque, produit, nom, couleur, PR / offert
 - **Idées** : noter des looks, puis « → Planifier » pour les transformer en makeup
 
@@ -18,6 +23,9 @@ Appli web installable sur téléphone (PWA), données dans Supabase, hébergée 
 
 1. Crée un compte sur <https://supabase.com> puis un **nouveau projet** (région Europe).
 2. Menu **SQL Editor** → **New query** → colle tout le contenu de [`supabase/schema.sql`](supabase/schema.sql) → **Run**.
+   (Si tu avais déjà lancé une ancienne version de `schema.sql`, lance plutôt les migrations
+   dans l'ordre : [`migration_002_publications.sql`](supabase/migration_002_publications.sql)
+   puis [`migration_003_photos.sql`](supabase/migration_003_photos.sql).)
 3. Menu **Authentication** → **Users** → **Add user** → **Create new user** : ton email + un mot de passe
    (coche « Auto Confirm User »). C'est avec ça que tu te connecteras.
 4. Menu **Authentication** → **Sign In / Providers** → désactive **Allow new users to sign up**
@@ -38,7 +46,7 @@ npm run dev
    ```bash
    git init && git add . && git commit -m "Makeup Planner"
    git branch -M main
-   git remote add origin https://github.com/TON-PSEUDO/makeup-planner.git
+   git remote add origin https://github.com/Jun080/makeup-planner.git
    git push -u origin main
    ```
 2. Dans le dépôt : **Settings** → **Secrets and variables** → **Actions** → **New repository secret**, ajoute :
@@ -46,7 +54,7 @@ npm run dev
    - `VITE_SUPABASE_PUBLISHABLE_KEY`
 3. **Settings** → **Pages** → Source : **GitHub Actions**.
 4. Onglet **Actions** → relance « Déployer sur GitHub Pages » si besoin.
-   L'appli sera sur `https://TON-PSEUDO.github.io/makeup-planner/`.
+   L'appli sera sur `https://Jun080.github.io/makeup-planner/`.
 
 > La clé *publishable* peut être publique : ce sont les règles de sécurité Supabase (RLS, dans `schema.sql`)
 > qui garantissent que personne d'autre que toi ne voit tes données.

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { isConfigured, supabase } from './supabase'
-import { deleteRow, fetchAll, updateMakeupStatus } from './data'
+import { deleteRow, fetchAll, updatePublication } from './data'
 import { notifyIfNeeded } from './reminders'
-import type { Idea, Makeup, Product, Status } from './types'
+import { allPubs } from './types'
+import type { Idea, Makeup, Product, Pub, Publication, Status } from './types'
 import { Login } from './components/Login'
 import { Sheet } from './components/Sheet'
 import { MakeupForm, type MakeupDraft } from './components/MakeupForm'
@@ -13,6 +14,7 @@ import { Pipeline } from './components/Pipeline'
 import { Search } from './components/Search'
 import { Products } from './components/Products'
 import { Ideas } from './components/Ideas'
+import { PlanSheet } from './components/PlanSheet'
 
 type Tab = 'today' | 'calendar' | 'pipeline' | 'search' | 'products' | 'ideas'
 
@@ -33,6 +35,7 @@ export default function App() {
   const [ideas, setIdeas] = useState<Idea[]>([])
   const [error, setError] = useState<string | null>(null)
   const [draft, setDraft] = useState<(MakeupDraft & { fromIdea?: string }) | null>(null)
+  const [planDate, setPlanDate] = useState<string | null>(null)
   const [notifPermission, setNotifPermission] = useState(
     'Notification' in window ? Notification.permission : 'denied',
   )
@@ -61,15 +64,24 @@ export default function App() {
     reload().then((data) => data && notifyIfNeeded(data.makeups))
   }, [session, reload])
 
-  async function advance(m: Makeup, status: Status) {
-    setMakeups((list) => list.map((x) => (x.id === m.id ? { ...x, status } : x)))
+  async function patchPub(pub: Pub, patch: Partial<Pick<Publication, 'status' | 'date'>>) {
+    // Mise à jour immédiate à l'écran, puis enregistrement
+    setMakeups((list) =>
+      list.map((m) =>
+        m.id === pub.makeup_id
+          ? { ...m, publications: m.publications.map((p) => (p.id === pub.id ? { ...p, ...patch } : p)) }
+          : m,
+      ),
+    )
     try {
-      await updateMakeupStatus(m.id, status)
+      await updatePublication(pub.id, patch)
     } catch (err) {
       setError((err as Error).message)
       reload()
     }
   }
+
+  const advance = (pub: Pub, status: Status) => patchPub(pub, { status })
 
   async function enableNotifications() {
     const p = await Notification.requestPermission()
@@ -89,6 +101,8 @@ export default function App() {
   if (!session) return <Login />
 
   const open = (m: Makeup) => setDraft(m)
+  const openPub = (p: Pub) => open(p.makeup)
+  const pubs = allPubs(makeups)
 
   return (
     <div className="app">
@@ -104,11 +118,9 @@ export default function App() {
 
       <main>
         {error && <p className="error">{error}</p>}
-        {tab === 'today' && <Today makeups={makeups} onOpen={open} onAdvance={advance} />}
-        {tab === 'calendar' && (
-          <CalendarView makeups={makeups} onOpen={open} onAdvance={advance} onAddOnDate={(date) => setDraft({ date })} />
-        )}
-        {tab === 'pipeline' && <Pipeline makeups={makeups} onOpen={open} onAdvance={advance} />}
+        {tab === 'today' && <Today pubs={pubs} onOpen={openPub} onAdvance={advance} onPlan={setPlanDate} />}
+        {tab === 'calendar' && <CalendarView pubs={pubs} onOpen={openPub} onAdvance={advance} onPlan={setPlanDate} />}
+        {tab === 'pipeline' && <Pipeline pubs={pubs} onOpen={openPub} onAdvance={advance} />}
         {tab === 'search' && <Search makeups={makeups} products={products} onOpen={open} />}
         {tab === 'products' && <Products products={products} onChanged={async () => void (await reload())} />}
         {tab === 'ideas' && (
@@ -116,7 +128,7 @@ export default function App() {
             ideas={ideas}
             onChanged={async () => void (await reload())}
             onConvert={(idea) =>
-              setDraft({ title: idea.title, notes: idea.description, status: 'a_faire', fromIdea: idea.id })
+              setDraft({ title: idea.title, notes: idea.description, fromIdea: idea.id })
             }
           />
         )}
@@ -134,6 +146,22 @@ export default function App() {
           </button>
         ))}
       </nav>
+
+      {planDate && (
+        <PlanSheet
+          date={planDate}
+          pubs={pubs}
+          onClose={() => setPlanDate(null)}
+          onPick={(pub) => {
+            patchPub(pub, { date: planDate })
+            setPlanDate(null)
+          }}
+          onNewMakeup={() => {
+            setDraft({ publications: [{ kind: 'tuto', date: planDate, status: 'realise' }] })
+            setPlanDate(null)
+          }}
+        />
+      )}
 
       {draft && (
         <Sheet title={draft.id ? 'Modifier' : 'Nouveau makeup'} onClose={() => setDraft(null)}>

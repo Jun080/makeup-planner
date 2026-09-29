@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { CATEGORIES, FORMATS } from '../types'
+import { CATEGORIES, PUB_KINDS } from '../types'
 import type { Makeup, Product } from '../types'
 import { MakeupCard } from './MakeupCard'
 
@@ -37,8 +37,7 @@ export function Search({
       if (type) {
         const [kind, value] = type.split(':')
         if (kind === 'cat' && m.category !== value) return false
-        if (kind === 'fmt' && !m.formats.includes(value as Makeup['formats'][number])) return false
-        if (kind === 'tuto' && !m.is_tuto) return false
+        if (kind === 'pub' && !m.publications.some((p) => p.kind === value)) return false
       }
       if (collab === 'oui' && !m.is_collab) return false
       if (collab === 'non' && m.is_collab) return false
@@ -62,8 +61,7 @@ export function Search({
         <select value={type} onChange={(e) => setType(e.target.value)}>
           <option value="">Type</option>
           {Object.entries(CATEGORIES).map(([k, v]) => <option key={k} value={`cat:${k}`}>{v}</option>)}
-          {Object.entries(FORMATS).map(([k, v]) => <option key={k} value={`fmt:${k}`}>{v}</option>)}
-          <option value="tuto:1">Tuto</option>
+          {Object.entries(PUB_KINDS).map(([k, v]) => <option key={k} value={`pub:${k}`}>Avec {v}</option>)}
         </select>
         <select value={collab} onChange={(e) => setCollab(e.target.value)}>
           <option value="">Collab</option>

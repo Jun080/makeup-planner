@@ -1,44 +1,66 @@
-import { daysUntil } from '../dates'
-import type { Makeup, Status } from '../types'
-import { MakeupCard } from './MakeupCard'
+import { daysUntil, formatDate, toISO } from '../dates'
+import type { Pub, Status } from '../types'
+import { PubCard } from './PubCard'
 
 export function Today({
-  makeups,
+  pubs,
   onOpen,
   onAdvance,
+  onPlan,
 }: {
-  makeups: Makeup[]
-  onOpen: (m: Makeup) => void
-  onAdvance: (m: Makeup, s: Status) => void
+  pubs: Pub[]
+  onOpen: (p: Pub) => void
+  onAdvance: (p: Pub, s: Status) => void
+  onPlan: (date: string) => void
 }) {
-  const pending = makeups.filter((m) => m.status !== 'publie')
-  const late = pending.filter((m) => daysUntil(m.date) < 0)
-  const today = pending.filter((m) => daysUntil(m.date) === 0)
-  const urgent = pending.filter((m) => [1, 2].includes(daysUntil(m.date)))
-  const week = pending.filter((m) => {
-    const d = daysUntil(m.date)
-    return d >= 3 && d <= 7
-  })
+  const pending = pubs.filter((p) => p.status !== 'publie')
+  const dated = pending.filter((p): p is Pub & { date: string } => p.date !== null)
+  const inDays = (min: number, max: number) =>
+    dated.filter((p) => daysUntil(p.date) >= min && daysUntil(p.date) <= max).sort((a, b) => a.date.localeCompare(b.date))
 
-  const section = (title: string, list: Makeup[], className = '') =>
+  const late = dated.filter((p) => daysUntil(p.date) < 0).sort((a, b) => a.date.localeCompare(b.date))
+  const today = inDays(0, 0)
+  const urgent = inDays(1, 2)
+  const week = inDays(3, 7)
+  const readyFillers = pending.filter((p) => !p.date && p.kind !== 'tuto' && p.status === 'pret')
+
+  // Jours des 7 prochains jours sans aucune publication prévue
+  const busy = new Set(pubs.map((p) => p.date))
+  const emptyDays: string[] = []
+  for (let i = 0; i < 7; i++) {
+    const d = new Date()
+    d.setDate(d.getDate() + i)
+    const iso = toISO(d)
+    if (!busy.has(iso)) emptyDays.push(iso)
+  }
+
+  const section = (title: string, list: Pub[], className = '') =>
     list.length > 0 && (
       <section className={className}>
         <h2>{title} <span className="count">{list.length}</span></h2>
-        {list.map((m) => (
-          <MakeupCard key={m.id} makeup={m} onOpen={() => onOpen(m)} onAdvance={(s) => onAdvance(m, s)} />
+        {list.map((p) => (
+          <PubCard key={p.id} pub={p} onOpen={() => onOpen(p)} onAdvance={(s) => onAdvance(p, s)} />
         ))}
       </section>
     )
-
-  const nothing = !late.length && !today.length && !urgent.length && !week.length
 
   return (
     <div>
       {section('🚨 Urgent — J-1 / J-2', urgent, 'alert')}
       {section('📅 Aujourd’hui', today)}
       {section('⏰ En retard', late, 'alert')}
-      {section('Cette semaine', week)}
-      {nothing && <p className="empty">Rien de prévu cette semaine ✨<br />Ajoute un makeup avec le bouton +</p>}
+      {emptyDays.length > 0 && (
+        <section>
+          <h2>🕳️ Jours vides cette semaine <span className="count">{emptyDays.length}</span></h2>
+          <div className="chips">
+            {emptyDays.map((d) => (
+              <button key={d} className="chip" onClick={() => onPlan(d)}>{formatDate(d)}</button>
+            ))}
+          </div>
+        </section>
+      )}
+      {section('📸 Photos & vidéos prêtes à caser', readyFillers)}
+      {section('Plus tard cette semaine', week)}
     </div>
   )
 }
