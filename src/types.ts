@@ -1,3 +1,6 @@
+import { Brush, Camera, Clapperboard, Layers, Package, Palette, Shapes, Video } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+
 export type Category = 'makeup' | 'unboxing' | 'swatch' | 'autre'
 export type Status = 'a_faire' | 'realise' | 'montage' | 'pret' | 'publie'
 export type PubKind = 'tuto' | 'photo' | 'video' | 'recap'
@@ -50,10 +53,10 @@ export interface Idea {
 }
 
 export const PUB_KINDS: Record<PubKind, string> = {
-  tuto: '🎬 Tuto',
-  photo: '📸 Photo',
-  video: '🎥 Vidéo',
-  recap: '🎞️ Récap',
+  tuto: 'Tuto',
+  photo: 'Photo',
+  video: 'Vidéo',
+  recap: 'Récap',
 }
 
 export const CATEGORIES: Record<Category, string> = {
@@ -66,10 +69,10 @@ export const CATEGORIES: Record<Category, string> = {
 /** Ce qui change selon le type de contenu : un swatch ou un unboxing n'est pas un makeup. */
 export const CATEGORY_INFO: Record<
   Category,
-  { icon: string; newTitle: string; placeholder: string; products: string; withTuto: boolean; defaultKinds: MakeupPubKind[] }
+  { icon: LucideIcon; newTitle: string; placeholder: string; products: string; withTuto: boolean; defaultKinds: MakeupPubKind[] }
 > = {
   makeup: {
-    icon: '💄',
+    icon: Brush,
     newTitle: 'Nouveau makeup',
     placeholder: 'ex : Look Halloween squelette',
     products: 'Produits utilisés',
@@ -77,7 +80,7 @@ export const CATEGORY_INFO: Record<
     defaultKinds: [],
   },
   swatch: {
-    icon: '🎨',
+    icon: Palette,
     newTitle: 'Nouveau swatch',
     placeholder: 'ex : Swatch palette Emerald Obsessions',
     products: 'Produits swatchés',
@@ -85,7 +88,7 @@ export const CATEGORY_INFO: Record<
     defaultKinds: ['video'],
   },
   unboxing: {
-    icon: '📦',
+    icon: Package,
     newTitle: 'Nouvel unboxing',
     placeholder: 'ex : Calendrier de l’avent Huda, colis Glisten…',
     products: 'Produits reçus',
@@ -93,7 +96,7 @@ export const CATEGORY_INFO: Record<
     defaultKinds: ['video'],
   },
   autre: {
-    icon: '✨',
+    icon: Shapes,
     newTitle: 'Nouveau contenu',
     placeholder: 'ex : Get ready with me',
     products: 'Produits',
@@ -116,7 +119,7 @@ export function productLabel(p: Product) {
   return [p.brand, p.product, p.name, p.color].filter(Boolean).join(' · ')
 }
 
-export const KIND_ICONS: Record<PubKind, string> = { tuto: '🎬', photo: '📸', video: '🎥', recap: '🎞️' }
+export const KIND_ICONS: Record<PubKind, LucideIcon> = { tuto: Clapperboard, photo: Camera, video: Video, recap: Layers }
 
 /** Icône à afficher quand il n'y a pas de photo : le type de contenu (swatch, unboxing), sinon le type de publication. */
 export function pubIcon(p: Pub) {

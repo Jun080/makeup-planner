@@ -18,7 +18,7 @@ export function Login() {
 
   return (
     <form className="login" onSubmit={submit}>
-      <h1>💄 Makeup Planner</h1>
+      <h1>Makeup Planner</h1>
       <label>
         Email
         <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
+import { Bell, CalendarDays, Clapperboard, House, Layers, Lightbulb, LogOut, Palette, Plus, Search as SearchIcon } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { isConfigured, supabase } from './supabase'
 import { deleteRow, fetchAll, updatePublication } from './data'
 import { enablePush, pushSupported, syncPushSubscription } from './push'
@@ -23,15 +25,20 @@ const NEW_CHOICES: { category: Category; hint: string }[] = [
   { category: 'unboxing', hint: 'Un colis, un calendrier de l’avent…' },
 ]
 
+function greeting() {
+  const h = new Date().getHours()
+  return h < 12 ? 'Bonjour' : h < 18 ? 'Bon après-midi' : 'Bonsoir'
+}
+
 type Tab = 'today' | 'calendar' | 'pipeline' | 'search' | 'products' | 'ideas'
 
-const TABS: { id: Tab; icon: string; label: string }[] = [
-  { id: 'today', icon: '🏠', label: 'Accueil' },
-  { id: 'calendar', icon: '📅', label: 'Calendrier' },
-  { id: 'pipeline', icon: '🎬', label: 'Pipeline' },
-  { id: 'search', icon: '🔍', label: 'Recherche' },
-  { id: 'products', icon: '💄', label: 'Produits' },
-  { id: 'ideas', icon: '💡', label: 'Idées' },
+const TABS: { id: Tab; icon: LucideIcon; label: string }[] = [
+  { id: 'today', icon: House, label: 'Accueil' },
+  { id: 'calendar', icon: CalendarDays, label: 'Calendrier' },
+  { id: 'pipeline', icon: Clapperboard, label: 'Pipeline' },
+  { id: 'search', icon: SearchIcon, label: 'Recherche' },
+  { id: 'products', icon: Palette, label: 'Produits' },
+  { id: 'ideas', icon: Lightbulb, label: 'Idées' },
 ]
 
 export default function App() {
@@ -112,7 +119,7 @@ export default function App() {
   if (!isConfigured) {
     return (
       <div className="login">
-        <h1>💄 Makeup Planner</h1>
+        <h1>Makeup Planner</h1>
         <p>Supabase n’est pas encore configuré. Suis les étapes du README (fichier <code>.env.local</code>).</p>
       </div>
     )
@@ -130,12 +137,27 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <h1>{TABS.find((t) => t.id === tab)?.label}</h1>
         <div>
-          {notifPermission === 'default' && (
-            <button className="icon-btn" onClick={enableNotifications} title="Activer les notifications">🔔</button>
+          {tab === 'today' ? (
+            <>
+              <p className="topbar-sub">
+                {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+              </p>
+              <h1>{greeting()}</h1>
+            </>
+          ) : (
+            <h1>{TABS.find((t) => t.id === tab)?.label}</h1>
           )}
-          <button className="icon-btn" onClick={() => supabase.auth.signOut()} title="Se déconnecter">⎋</button>
+        </div>
+        <div className="topbar-actions">
+          {notifPermission === 'default' && (
+            <button className="round-btn" onClick={enableNotifications} aria-label="Activer les notifications">
+              <Bell size={20} />
+            </button>
+          )}
+          <button className="round-btn" onClick={() => supabase.auth.signOut()} aria-label="Se déconnecter">
+            <LogOut size={18} />
+          </button>
         </div>
       </header>
 
@@ -160,14 +182,16 @@ export default function App() {
       </main>
 
       {tab !== 'products' && tab !== 'ideas' && (
-        <button className="fab" onClick={() => setChoosing({})} aria-label="Ajouter">+</button>
+        <button className="fab" onClick={() => setChoosing({})} aria-label="Ajouter">
+          <Plus size={28} strokeWidth={2.2} />
+        </button>
       )}
 
       <nav className="tabbar">
         {TABS.map((t) => (
-          <button key={t.id} className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}>
-            <span>{t.icon}</span>
-            <small>{t.label}</small>
+          <button key={t.id} className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)} aria-label={t.label}>
+            <t.icon size={20} strokeWidth={tab === t.id ? 2.2 : 1.8} />
+            {tab === t.id && <small>{t.label}</small>}
           </button>
         ))}
       </nav>
@@ -203,7 +227,7 @@ export default function App() {
                   setChoosing(null)
                 }}
               >
-                <span>{CATEGORY_INFO[category].icon}</span>
+                <span>{(() => { const Icon = CATEGORY_INFO[category].icon; return <Icon size={22} strokeWidth={1.8} /> })()}</span>
                 <span>{CATEGORY_INFO[category].newTitle}<small>{hint}</small></span>
               </button>
             ))}
@@ -213,7 +237,7 @@ export default function App() {
                 setChoosing(null)
               }}
             >
-              <span>🎞️</span>
+              <span><Layers size={22} strokeWidth={1.8} /></span>
               <span>Nouveau récap<small>Une vidéo qui regroupe plusieurs contenus</small></span>
             </button>
           </div>

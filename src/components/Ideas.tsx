@@ -38,7 +38,7 @@ export function Ideas({
       </form>
       {ideas.map((idea) => (
         <article key={idea.id} className="card">
-          <strong>💡 {idea.title}</strong>
+          <strong>{idea.title}</strong>
           {idea.description && <p className="idea-desc">{idea.description}</p>}
           <div className="actions">
             <button className="danger" onClick={() => remove(idea)}>Supprimer</button>

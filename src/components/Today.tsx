@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ChevronDown } from 'lucide-react'
 import { daysUntil, formatDate, toISO, todayISO } from '../dates'
 import { isFiller, pubIcon, PUB_KINDS, STATUSES, STATUS_ORDER } from '../types'
 import type { Pub, Status } from '../types'
@@ -89,18 +90,14 @@ export function Today({
   const reserveLabels: Record<ReserveTab, string> = { photo: 'photos prêtes', video: 'vidéos prêtes', a_faire: 'à faire' }
 
   if (!pubs.length) {
-    return <p className="empty">Bienvenue ✨<br />Ajoute ton premier makeup avec le bouton +</p>
+    return <p className="empty">Bienvenue<br />Ajoute ton premier makeup avec le bouton +</p>
   }
 
   return (
     <div className="home">
-      <p className="home-date">
-        {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
-      </p>
-
       {/* 1 · À poster aujourd'hui */}
       <section>
-        <h2>📅 À poster aujourd’hui</h2>
+        <h2>À poster aujourd’hui</h2>
         {todayPubs.map((p) => {
           const next = nextStatus(p.status)
           return (
@@ -111,7 +108,7 @@ export function Today({
                 <small>{PUB_KINDS[p.kind]}</small>
                 <span className={`badge status-${p.status}`}>{STATUSES[p.status]}</span>
               </div>
-              {next ? (
+              {next && (
                 <button
                   className="primary hero-action"
                   onClick={(e) => {
@@ -121,8 +118,6 @@ export function Today({
                 >
                   {next === 'publie' ? 'Marquer publié' : `→ ${STATUSES[next]}`}
                 </button>
-              ) : (
-                <p className="hero-done">✅ Publié, bravo !</p>
               )}
             </article>
           )
@@ -145,8 +140,8 @@ export function Today({
       </section>
 
       {/* 2 · Dans le train */}
-      <section>
-        <h2>✂️ Dans le train</h2>
+      <section className="block-train">
+        <h2>Dans le train</h2>
         {toEdit.map((p) => {
           const next = nextStatus(p.status)
           return (
@@ -160,12 +155,12 @@ export function Today({
             </div>
           )
         })}
-        {!toEdit.length && <p className="muted">Rien à monter, profite du trajet 🎧</p>}
+        {!toEdit.length && <p className="muted">Rien à monter, profite du trajet.</p>}
       </section>
 
       {/* 3 · Les 7 prochains jours */}
       <section>
-        <h2>🗓️ Les 7 prochains jours</h2>
+        <h2>Les 7 prochains jours</h2>
         <div className="strip">
           {days.map((iso, i) => {
             const list = onDay(iso)
@@ -179,8 +174,13 @@ export function Today({
               >
                 <small>{d.toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', '')}</small>
                 <strong>{d.getDate()}</strong>
-                {list.length ? <MiniThumb pub={list[0]} /> : <span className="strip-plus">+</span>}
-                {list.length > 1 && <span className="strip-more">+{list.length - 1}</span>}
+                {list.length ? (
+                  <span className="strip-thumbs">
+                    {list.map((p) => <MiniThumb key={p.id} pub={p} />)}
+                  </span>
+                ) : (
+                  <span className="strip-plus">+</span>
+                )}
               </button>
             )
           })}
@@ -198,8 +198,8 @@ export function Today({
       {late.length > 0 && (
         <section>
           <button className="late-banner" onClick={() => setShowLate(!showLate)}>
-            <span>⏰ {late.length} post{late.length > 1 ? 's' : ''} à rattraper</span>
-            <span>{showLate ? '▴' : '▾'}</span>
+            <span>{late.length} post{late.length > 1 ? 's' : ''} à rattraper</span>
+            <ChevronDown size={20} className={showLate ? 'flip' : ''} />
           </button>
           {showLate && (
             <div className="late-list">
@@ -212,7 +212,7 @@ export function Today({
 
       {/* 5 · Réserve */}
       <section>
-        <h2>📦 Ta réserve</h2>
+        <h2>Ta réserve</h2>
         <div className="tiles">
           {(Object.keys(reserveLists) as ReserveTab[]).map((k) => (
             <button key={k} className={`tile ${reserveTab === k ? 'on' : ''}`} onClick={() => setReserveTab(reserveTab === k ? null : k)}>

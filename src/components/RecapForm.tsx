@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Check, Layers } from 'lucide-react'
 import { deleteRecap, saveRecap } from '../data'
 import { formatDate, toISO } from '../dates'
 import { CATEGORY_INFO, STATUSES, STATUS_ORDER } from '../types'
@@ -84,7 +85,7 @@ export function RecapForm({
 
   return (
     <form className="form" onSubmit={submit}>
-      {selectedPhotos.some(Boolean) && <Thumb urls={selectedPhotos} className="recap-preview" icon="🎞️" />}
+      {selectedPhotos.some(Boolean) && <Thumb urls={selectedPhotos} className="recap-preview" icon={Layers} />}
 
       <label>Titre<input value={title} onChange={(e) => setTitle(e.target.value)} required /></label>
 
@@ -114,7 +115,7 @@ export function RecapForm({
                 <strong>{m.title}</strong>
                 <small>{formatDate(m.date)}</small>
               </span>
-              <span className="recap-check">{selected.includes(m.id) ? '✓' : ''}</span>
+              <span className="recap-check">{selected.includes(m.id) && <Check size={14} strokeWidth={3} />}</span>
             </label>
           ))}
           {!list.length && <p className="muted">Rien ce mois-ci.</p>}

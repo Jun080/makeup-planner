@@ -9,7 +9,7 @@ const MORNING_HOUR = 8
 const EVENING_HOUR = 20
 const APP_URL = 'https://jun080.github.io/makeup-planner/'
 
-const KINDS: Record<string, string> = { tuto: '🎬 Tuto', photo: '📸 Photo', video: '🎥 Vidéo', recap: '🎞️' }
+const KINDS: Record<string, string> = { tuto: 'Tuto', photo: 'Photo', video: 'Vidéo', recap: '' }
 const STATUSES: Record<string, string> = {
   a_faire: 'À faire',
   realise: 'Réalisé',
@@ -52,7 +52,7 @@ function morning(pubs: Pub[]): Message | null {
   if (today.length) {
     lines.push(
       'Aujourd’hui : ' +
-        today.map((p) => `${label(p)}${p.status === 'pret' ? ' ✅' : ` ⚠️ ${STATUSES[p.status]}`}`).join(', '),
+        today.map((p) => `${label(p)} (${p.status === 'pret' ? 'prêt' : `pas prêt : ${STATUSES[p.status]}`})`).join(', '),
     )
   }
 
@@ -62,23 +62,23 @@ function morning(pubs: Pub[]): Message | null {
     .sort((a, b) => (a.date ?? '9999').localeCompare(b.date ?? '9999'))
     .slice(0, 3)
   if (toEdit.length) {
-    lines.push('✂️ À monter : ' + toEdit.map((p) => `${label(p)}${p.date ? ` (${weekday(p.date)})` : ''}`).join(', '))
+    lines.push('À monter : ' + toEdit.map((p) => `${label(p)}${p.date ? ` (${weekday(p.date)})` : ''}`).join(', '))
   }
 
   const late = dated.filter((p) => daysFromToday(p.date) < 0).length
-  if (late) lines.push(`⏰ ${late} en retard`)
+  if (late) lines.push(`${late} en retard`)
 
   const busy = new Set(pubs.map((p) => p.date))
   let empty = 0
   for (let i = 0; i < 7; i++) if (!busy.has(parisDate(i))) empty++
   const fillers = pending.filter((p) => !p.date && isFiller(p) && p.status === 'pret').length
-  const extra = [empty && `🕳️ ${empty} jour${empty > 1 ? 's' : ''} vide${empty > 1 ? 's' : ''} cette semaine`, fillers && `📸 ${fillers} en réserve`]
+  const extra = [empty && `${empty} jour${empty > 1 ? 's' : ''} vide${empty > 1 ? 's' : ''} cette semaine`, fillers && `${fillers} en réserve`]
     .filter(Boolean)
     .join(' · ')
   if (extra) lines.push(extra)
 
   if (!lines.length) return null
-  return { title: '☀️ Ta journée makeup', body: lines.join('\n'), tag: 'morning', url: APP_URL }
+  return { title: 'Ta journée', body: lines.join('\n'), tag: 'morning', url: APP_URL }
 }
 
 function evening(pubs: Pub[]): Message | null {
@@ -86,15 +86,15 @@ function evening(pubs: Pub[]): Message | null {
   const tomorrow = pending.filter((p) => p.date && daysFromToday(p.date) === 1)
   if (tomorrow.length) {
     const body = tomorrow
-      .map((p) => `${label(p)} — ${p.status === 'pret' ? 'Prêt ✅' : `${STATUSES[p.status]} ⚠️`}`)
+      .map((p) => `${label(p)} : ${p.status === 'pret' ? 'prêt' : `pas prêt (${STATUSES[p.status]})`}`)
       .join('\n')
-    return { title: '🌙 Demain', body, tag: 'evening', url: APP_URL }
+    return { title: 'Demain', body, tag: 'evening', url: APP_URL }
   }
   const fillers = pending.filter((p) => !p.date && isFiller(p) && p.status === 'pret').length
   const body = fillers
-    ? `Rien de prévu demain. Tu as ${fillers} photo${fillers > 1 ? 's' : ''} / vidéo${fillers > 1 ? 's' : ''} prête${fillers > 1 ? 's' : ''} à caser 📸`
+    ? `Rien de prévu demain. Tu as ${fillers} photo${fillers > 1 ? 's' : ''} / vidéo${fillers > 1 ? 's' : ''} prête${fillers > 1 ? 's' : ''} à caser.`
     : 'Rien de prévu demain.'
-  return { title: '🌙 Demain', body, tag: 'evening', url: APP_URL }
+  return { title: 'Demain', body, tag: 'evening', url: APP_URL }
 }
 
 Deno.serve(async (req) => {

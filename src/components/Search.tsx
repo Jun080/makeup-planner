@@ -48,7 +48,7 @@ export function Search({
 
   return (
     <div>
-      <input className="search" placeholder="🔍 Rechercher un makeup, un swatch, un unboxing…" value={q} onChange={(e) => setQ(e.target.value)} />
+      <input className="search" placeholder="Rechercher un makeup, un swatch, un unboxing…" value={q} onChange={(e) => setQ(e.target.value)} />
       <div className="filters">
         <select value={color} onChange={(e) => setColor(e.target.value)}>
           <option value="">Couleur</option>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Camera, X } from 'lucide-react'
 import { saveMakeup, deleteRow, deletePhoto, uploadPhoto, type PublicationDraft } from '../data'
 import { daysUntil, todayISO } from '../dates'
 import { CATEGORIES, CATEGORY_INFO, PUB_KINDS, STATUSES, STATUS_ORDER, productLabel } from '../types'
@@ -129,7 +130,7 @@ export function MakeupForm({
       <div className="chips">
         {(Object.keys(CATEGORIES) as Category[]).map((c) => (
           <button type="button" key={c} className={`chip ${category === c ? 'on' : ''}`} onClick={() => changeCategory(c)}>
-            {CATEGORY_INFO[c].icon} {CATEGORIES[c]}
+            {CATEGORIES[c]}
           </button>
         ))}
       </div>
@@ -141,7 +142,7 @@ export function MakeupForm({
         {preview && <img className="photo-preview" src={preview} alt="" />}
         <div className="chips">
           <label className="chip file-chip">
-            📷 {preview ? 'Changer la photo' : 'Ajouter une photo'}
+            <Camera size={16} /> {preview ? 'Changer la photo' : 'Ajouter une photo'}
             <input
               type="file"
               accept="image/*"
@@ -191,7 +192,7 @@ export function MakeupForm({
             <select value={p.status} onChange={(e) => updatePub(i, { status: e.target.value as Status })}>
               {STATUS_ORDER.map((s) => <option key={s} value={s}>{STATUSES[s]}</option>)}
             </select>
-            <button type="button" className="icon-btn" onClick={() => { setPubs(pubs.filter((_, j) => j !== i)); setPubsTouched(true) }} aria-label="Retirer">✕</button>
+            <button type="button" className="icon-btn" onClick={() => { setPubs(pubs.filter((_, j) => j !== i)); setPubsTouched(true) }} aria-label="Retirer"><X size={18} /></button>
           </div>
         ))}
         <p className="muted">Laisse la date vide pour garder la publication en réserve.</p>

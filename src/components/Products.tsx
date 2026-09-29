@@ -12,7 +12,7 @@ export function Products({ products, onChanged }: { products: Product[]; onChang
   return (
     <div>
       <div className="row">
-        <input className="search" placeholder="🔍 Rechercher un produit…" value={q} onChange={(e) => setQ(e.target.value)} />
+        <input className="search" placeholder="Rechercher un produit…" value={q} onChange={(e) => setQ(e.target.value)} />
         <button className="primary" onClick={() => setEditing('new')}>+ Produit</button>
       </div>
       {list.map((p) => (
