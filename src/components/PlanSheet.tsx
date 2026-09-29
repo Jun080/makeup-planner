@@ -1,5 +1,5 @@
 import { formatDate } from '../dates'
-import { PUB_KINDS, STATUSES } from '../types'
+import { isFiller, KIND_ICONS, PUB_KINDS, STATUSES } from '../types'
 import { Thumb } from './Thumb'
 import type { Pub } from '../types'
 import { Sheet } from './Sheet'
@@ -30,10 +30,10 @@ export function PlanSheet({
           <p className="muted">Publications en réserve :</p>
           {reserve.map((p) => (
             <article key={p.id} className="card with-thumb" onClick={() => onPick(p)}>
-              <Thumb url={p.makeup.photo_url} />
+              <Thumb urls={p.photos} icon={KIND_ICONS[p.kind]} />
               <div className="card-body">
                 <div className="card-top">
-                  <strong>{p.makeup.title}</strong>
+                  <strong>{p.displayTitle}</strong>
                   <span className={`badge status-${p.status}`}>{STATUSES[p.status]}</span>
                 </div>
                 <div className="card-meta"><span>{PUB_KINDS[p.kind]}</span></div>
@@ -44,11 +44,11 @@ export function PlanSheet({
       ) : (
         <p className="muted">Aucune publication en réserve.</p>
       )}
-      <button className="link" onClick={onNewMakeup}>+ Nouveau makeup ce jour-là</button>
+      <button className="link" onClick={onNewMakeup}>+ Nouveau makeup ou récap ce jour-là</button>
     </Sheet>
   )
 }
 
 function score(p: Pub) {
-  return (p.kind !== 'tuto' ? 2 : 0) + (p.status === 'pret' ? 1 : 0)
+  return (isFiller(p) ? 2 : 0) + (p.status === 'pret' ? 1 : 0)
 }

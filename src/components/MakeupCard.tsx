@@ -6,7 +6,7 @@ import type { Makeup } from '../types'
 export function MakeupCard({ makeup, onOpen }: { makeup: Makeup; onOpen: () => void }) {
   return (
     <article className="card with-thumb" onClick={onOpen}>
-      <Thumb url={makeup.photo_url} />
+      <Thumb urls={[makeup.photo_url]} />
       <div className="card-body">
         <div className="card-top">
           <strong>{makeup.title}</strong>

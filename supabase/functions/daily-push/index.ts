@@ -9,7 +9,7 @@ const MORNING_HOUR = 8
 const EVENING_HOUR = 20
 const APP_URL = 'https://jun080.github.io/makeup-planner/'
 
-const KINDS: Record<string, string> = { tuto: '🎬 Tuto', photo: '📸 Photo', video: '🎥 Vidéo' }
+const KINDS: Record<string, string> = { tuto: '🎬 Tuto', photo: '📸 Photo', video: '🎥 Vidéo', recap: '🎞️' }
 const STATUSES: Record<string, string> = {
   a_faire: 'À faire',
   realise: 'Réalisé',
@@ -18,7 +18,7 @@ const STATUSES: Record<string, string> = {
   publie: 'Publié',
 }
 
-type Pub = { kind: string; date: string | null; status: string; makeups: { title: string } | null }
+type Pub = { kind: string; date: string | null; status: string; title: string | null; makeups: { title: string } | null }
 type Message = { title: string; body: string; tag: string; url: string }
 
 webpush.setVapidDetails(APP_URL, Deno.env.get('VAPID_PUBLIC_KEY')!, Deno.env.get('VAPID_PRIVATE_KEY')!)
@@ -38,7 +38,8 @@ function daysFromToday(iso: string) {
   return Math.round((Date.UTC(y, m - 1, d) - Date.UTC(ty, tm - 1, td)) / 86_400_000)
 }
 
-const label = (p: Pub) => `${KINDS[p.kind] ?? p.kind} ${p.makeups?.title ?? ''}`.trim()
+const label = (p: Pub) => `${KINDS[p.kind] ?? p.kind} ${p.title ?? p.makeups?.title ?? ''}`.trim()
+const isFiller = (p: Pub) => p.kind === 'photo' || p.kind === 'video'
 const weekday = (iso: string) =>
   new Date(iso + 'T12:00:00Z').toLocaleDateString('fr-FR', { weekday: 'short', timeZone: 'UTC' })
 
@@ -55,7 +56,7 @@ function morning(pubs: Pub[]): Message | null {
     )
   }
 
-  // À monter sur CapCut : tutos / vidéos pas encore prêts, du plus urgent au moins urgent
+  // À monter sur CapCut : tutos / vidéos / récaps pas encore prêts, du plus urgent au moins urgent
   const toEdit = pending
     .filter((p) => p.kind !== 'photo' && (p.status === 'realise' || p.status === 'montage'))
     .sort((a, b) => (a.date ?? '9999').localeCompare(b.date ?? '9999'))
@@ -70,7 +71,7 @@ function morning(pubs: Pub[]): Message | null {
   const busy = new Set(pubs.map((p) => p.date))
   let empty = 0
   for (let i = 0; i < 7; i++) if (!busy.has(parisDate(i))) empty++
-  const fillers = pending.filter((p) => !p.date && p.kind !== 'tuto' && p.status === 'pret').length
+  const fillers = pending.filter((p) => !p.date && isFiller(p) && p.status === 'pret').length
   const extra = [empty && `🕳️ ${empty} jour${empty > 1 ? 's' : ''} vide${empty > 1 ? 's' : ''} cette semaine`, fillers && `📸 ${fillers} en réserve`]
     .filter(Boolean)
     .join(' · ')
@@ -89,7 +90,7 @@ function evening(pubs: Pub[]): Message | null {
       .join('\n')
     return { title: '🌙 Demain', body, tag: 'evening', url: APP_URL }
   }
-  const fillers = pending.filter((p) => !p.date && p.kind !== 'tuto' && p.status === 'pret').length
+  const fillers = pending.filter((p) => !p.date && isFiller(p) && p.status === 'pret').length
   const body = fillers
     ? `Rien de prévu demain. Tu as ${fillers} photo${fillers > 1 ? 's' : ''} / vidéo${fillers > 1 ? 's' : ''} prête${fillers > 1 ? 's' : ''} à caser 📸`
     : 'Rien de prévu demain.'
@@ -119,7 +120,7 @@ Deno.serve(async (req) => {
   for (const userId of new Set(subs.map((s) => s.user_id))) {
     const { data: pubs } = await db
       .from('publications')
-      .select('kind, date, status, makeups(title)')
+      .select('kind, date, status, title, makeups!publications_makeup_id_fkey(title)')
       .eq('user_id', userId)
     const msg = (mode === 'morning' ? morning : evening)((pubs ?? []) as Pub[])
     if (!msg) continue

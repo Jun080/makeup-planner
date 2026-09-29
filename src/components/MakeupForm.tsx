@@ -2,9 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { saveMakeup, deleteRow, deletePhoto, uploadPhoto, type PublicationDraft } from '../data'
 import { daysUntil, todayISO } from '../dates'
 import { CATEGORIES, PUB_KINDS, STATUSES, STATUS_ORDER, productLabel } from '../types'
-import type { Category, Makeup, Product, PubKind, Status } from '../types'
+import type { Category, Makeup, MakeupPubKind, Product, Status } from '../types'
 import { ProductForm } from './ProductForm'
 import { Sheet } from './Sheet'
+
+const MAKEUP_KINDS: MakeupPubKind[] = ['tuto', 'photo', 'video']
 
 export type MakeupDraft = Partial<Omit<Makeup, 'publications'>> & { publications?: PublicationDraft[] }
 
@@ -60,7 +62,7 @@ export function MakeupForm({
     return list.includes(value) ? list.filter((v) => v !== value) : [...list, value]
   }
 
-  function addPub(kind: PubKind) {
+  function addPub(kind: MakeupPubKind) {
     // Makeup pas encore réalisé (date future) → "À faire", sinon "Réalisé"
     const status: Status = daysUntil(date) > 0 ? 'a_faire' : 'realise'
     setPubs([...pubs, { kind, date: null, status }])
@@ -164,8 +166,8 @@ export function MakeupForm({
         <legend>Publications ({pubs.length})</legend>
         {pubs.map((p, i) => (
           <div key={p.id ?? `new-${i}`} className="pub-row">
-            <select value={p.kind} onChange={(e) => updatePub(i, { kind: e.target.value as PubKind })}>
-              {(Object.keys(PUB_KINDS) as PubKind[]).map((k) => <option key={k} value={k}>{PUB_KINDS[k]}</option>)}
+            <select value={p.kind} onChange={(e) => updatePub(i, { kind: e.target.value as MakeupPubKind })}>
+              {MAKEUP_KINDS.map((k) => <option key={k} value={k}>{PUB_KINDS[k]}</option>)}
             </select>
             <input
               type="date"

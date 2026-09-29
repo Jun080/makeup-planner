@@ -8,6 +8,7 @@ Appli web installable sur téléphone (PWA), données dans Supabase, hébergée 
 Un **makeup** (le look, réalisé une fois, avec sa photo et ses produits) contient des **publications** :
 🎬 tuto, 📸 photo ou 🎥 vidéo. Chaque publication a sa propre date et sa propre étape.
 Une publication sans date est **en réserve** : parfaite pour combler un jour vide entre deux tutos.
+Un **🎞️ récap** est une publication qui regroupe plusieurs makeups (ex : récap du mois).
 
 - **Accueil** : 🚨 urgents (J-1 / J-2), aujourd'hui, en retard, jours vides de la semaine
   (touche un jour pour y placer une publication en réserve), photos & vidéos prêtes à caser
@@ -25,7 +26,8 @@ Une publication sans date est **en réserve** : parfaite pour combler un jour vi
 2. Menu **SQL Editor** → **New query** → colle tout le contenu de [`supabase/schema.sql`](supabase/schema.sql) → **Run**.
    (Si tu avais déjà lancé une ancienne version de `schema.sql`, lance plutôt les migrations
    dans l'ordre : [`migration_002_publications.sql`](supabase/migration_002_publications.sql)
-   puis [`migration_003_photos.sql`](supabase/migration_003_photos.sql).)
+   puis [`migration_003_photos.sql`](supabase/migration_003_photos.sql), [`migration_004_push.sql`](supabase/migration_004_push.sql)
+   et [`migration_005_recaps.sql`](supabase/migration_005_recaps.sql).)
 3. Menu **Authentication** → **Users** → **Add user** → **Create new user** : ton email + un mot de passe
    (coche « Auto Confirm User »). C'est avec ça que tu te connecteras.
 4. Menu **Authentication** → **Sign In / Providers** → désactive **Allow new users to sign up**

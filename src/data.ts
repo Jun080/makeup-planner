@@ -1,20 +1,22 @@
 import { supabase } from './supabase'
-import type { Idea, Makeup, Product, Publication } from './types'
+import type { Idea, Makeup, Product, Publication, Recap } from './types'
 
 type MakeupRow = Omit<Makeup, 'product_ids' | 'photo_url'> & { makeup_products: { product_id: string }[] }
 
 const PHOTO_BUCKET = 'makeup-photos'
 
-export type PublicationDraft = Omit<Publication, 'id' | 'makeup_id'> & { id?: string }
+export type PublicationDraft = Omit<Publication, 'id' | 'makeup_id' | 'title'> & { id?: string }
+export type RecapInput = Pick<Recap, 'title' | 'date' | 'status' | 'makeup_ids'> & { id?: string }
 export type MakeupInput = Omit<Makeup, 'id' | 'publications' | 'photo_url'> & { id?: string; publications: PublicationDraft[] }
 
 export async function fetchAll() {
-  const [m, p, i] = await Promise.all([
-    supabase.from('makeups').select('*, makeup_products(product_id), publications(*)').order('date'),
+  const [m, p, i, r] = await Promise.all([
+    supabase.from('makeups').select('*, makeup_products(product_id), publications!publications_makeup_id_fkey(*)').order('date'),
     supabase.from('products').select('*').order('brand'),
     supabase.from('ideas').select('*').order('created_at', { ascending: false }),
+    supabase.from('publications').select('*, publication_makeups(makeup_id)').eq('kind', 'recap'),
   ])
-  const error = m.error ?? p.error ?? i.error
+  const error = m.error ?? p.error ?? i.error ?? r.error
   if (error) throw error
   const rows = m.data as MakeupRow[]
 
@@ -31,7 +33,10 @@ export async function fetchAll() {
     photo_url: row.photo_path ? (urls.get(row.photo_path) ?? null) : null,
     product_ids: makeup_products.map((mp) => mp.product_id),
   }))
-  return { makeups, products: p.data as Product[], ideas: i.data as Idea[] }
+  const recaps: Recap[] = (r.data as (Recap & { publication_makeups: { makeup_id: string }[] })[]).map(
+    ({ publication_makeups, ...row }) => ({ ...row, makeup_ids: publication_makeups.map((x) => x.makeup_id) }),
+  )
+  return { makeups, recaps, products: p.data as Product[], ideas: i.data as Idea[] }
 }
 
 export async function saveMakeup(m: MakeupInput) {
@@ -70,6 +75,29 @@ export async function saveMakeup(m: MakeupInput) {
     const ins = await supabase.from('publications').insert(fresh.map((p) => ({ ...p, makeup_id: makeupId })))
     if (ins.error) throw ins.error
   }
+}
+
+export async function saveRecap({ id, makeup_ids, ...fields }: RecapInput) {
+  const payload = { ...fields, kind: 'recap', makeup_id: null }
+  const res = id
+    ? await supabase.from('publications').update(payload).eq('id', id).select('id').single()
+    : await supabase.from('publications').insert(payload).select('id').single()
+  if (res.error) throw res.error
+  const recapId = res.data.id as string
+
+  const del = await supabase.from('publication_makeups').delete().eq('publication_id', recapId)
+  if (del.error) throw del.error
+  if (makeup_ids.length) {
+    const ins = await supabase
+      .from('publication_makeups')
+      .insert(makeup_ids.map((makeup_id) => ({ publication_id: recapId, makeup_id })))
+    if (ins.error) throw ins.error
+  }
+}
+
+export async function deleteRecap(id: string) {
+  const { error } = await supabase.from('publications').delete().eq('id', id)
+  if (error) throw error
 }
 
 export async function updatePublication(id: string, patch: Partial<Pick<Publication, 'status' | 'date'>>) {

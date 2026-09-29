@@ -1,5 +1,5 @@
 import { daysUntil, formatDate } from '../dates'
-import { PUB_KINDS, STATUSES, STATUS_ORDER } from '../types'
+import { KIND_ICONS, PUB_KINDS, STATUSES, STATUS_ORDER } from '../types'
 import { Thumb } from './Thumb'
 import type { Pub, Status } from '../types'
 
@@ -27,16 +27,19 @@ export function PubCard({
 
   return (
     <article className={`card with-thumb ${urgency}`} onClick={onOpen}>
-      <Thumb url={pub.makeup.photo_url} />
+      <Thumb urls={pub.photos} icon={KIND_ICONS[pub.kind]} />
       <div className="card-body">
         <div className="card-top">
-          <strong>{pub.makeup.title}</strong>
+          <strong>{pub.displayTitle}</strong>
           <span className={`badge status-${pub.status}`}>{STATUSES[pub.status]}</span>
         </div>
         <div className="card-meta">
           <span>{PUB_KINDS[pub.kind]}</span>
           <span>{when}</span>
-          {pub.makeup.is_collab && <span>Collab{pub.makeup.collab_with ? ` ${pub.makeup.collab_with}` : ''}</span>}
+          {pub.kind === 'recap' && <span>{pub.makeups.length} makeup{pub.makeups.length > 1 ? 's' : ''}</span>}
+            {pub.kind !== 'recap' && pub.makeups[0]?.is_collab && (
+              <span>Collab{pub.makeups[0].collab_with ? ` ${pub.makeups[0].collab_with}` : ''}</span>
+            )}
         </div>
         {onAdvance && next && (
           <button

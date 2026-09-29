@@ -4,7 +4,7 @@ import { isConfigured, supabase } from './supabase'
 import { deleteRow, fetchAll, updatePublication } from './data'
 import { enablePush, pushSupported, syncPushSubscription } from './push'
 import { allPubs } from './types'
-import type { Idea, Makeup, Product, Pub, Publication, Status } from './types'
+import type { Idea, Makeup, Product, Pub, Publication, Recap, Status } from './types'
 import { Login } from './components/Login'
 import { Sheet } from './components/Sheet'
 import { MakeupForm, type MakeupDraft } from './components/MakeupForm'
@@ -15,6 +15,7 @@ import { Search } from './components/Search'
 import { Products } from './components/Products'
 import { Ideas } from './components/Ideas'
 import { PlanSheet } from './components/PlanSheet'
+import { RecapForm, type RecapDraft } from './components/RecapForm'
 
 type Tab = 'today' | 'calendar' | 'pipeline' | 'search' | 'products' | 'ideas'
 
@@ -31,11 +32,14 @@ export default function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
   const [tab, setTab] = useState<Tab>('today')
   const [makeups, setMakeups] = useState<Makeup[]>([])
+  const [recaps, setRecaps] = useState<Recap[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [ideas, setIdeas] = useState<Idea[]>([])
   const [error, setError] = useState<string | null>(null)
   const [draft, setDraft] = useState<(MakeupDraft & { fromIdea?: string }) | null>(null)
   const [planDate, setPlanDate] = useState<string | null>(null)
+  const [recapDraft, setRecapDraft] = useState<RecapDraft | null>(null)
+  const [choosing, setChoosing] = useState<{ date?: string } | null>(null)
   const [notifPermission, setNotifPermission] = useState(
     pushSupported() ? Notification.permission : 'denied',
   )
@@ -50,6 +54,7 @@ export default function App() {
     try {
       const data = await fetchAll()
       setMakeups(data.makeups)
+      setRecaps(data.recaps)
       setProducts(data.products)
       setIdeas(data.ideas)
       setError(null)
@@ -68,13 +73,17 @@ export default function App() {
 
   async function patchPub(pub: Pub, patch: Partial<Pick<Publication, 'status' | 'date'>>) {
     // Mise à jour immédiate à l'écran, puis enregistrement
-    setMakeups((list) =>
-      list.map((m) =>
-        m.id === pub.makeup_id
-          ? { ...m, publications: m.publications.map((p) => (p.id === pub.id ? { ...p, ...patch } : p)) }
-          : m,
-      ),
-    )
+    if (pub.kind === 'recap') {
+      setRecaps((list) => list.map((r) => (r.id === pub.id ? { ...r, ...patch } : r)))
+    } else {
+      setMakeups((list) =>
+        list.map((m) =>
+          m.id === pub.makeup_id
+            ? { ...m, publications: m.publications.map((p) => (p.id === pub.id ? { ...p, ...patch } : p)) }
+            : m,
+        ),
+      )
+    }
     try {
       await updatePublication(pub.id, patch)
     } catch (err) {
@@ -105,8 +114,11 @@ export default function App() {
   if (!session) return <Login />
 
   const open = (m: Makeup) => setDraft(m)
-  const openPub = (p: Pub) => open(p.makeup)
-  const pubs = allPubs(makeups)
+  const openPub = (p: Pub) => {
+    if (p.kind === 'recap') setRecapDraft(recaps.find((r) => r.id === p.id) ?? null)
+    else if (p.makeups[0]) open(p.makeups[0])
+  }
+  const pubs = allPubs(makeups, recaps)
 
   return (
     <div className="app">
@@ -139,7 +151,7 @@ export default function App() {
       </main>
 
       {tab !== 'products' && tab !== 'ideas' && (
-        <button className="fab" onClick={() => setDraft({})} aria-label="Ajouter un makeup">+</button>
+        <button className="fab" onClick={() => setChoosing({})} aria-label="Ajouter">+</button>
       )}
 
       <nav className="tabbar">
@@ -161,10 +173,49 @@ export default function App() {
             setPlanDate(null)
           }}
           onNewMakeup={() => {
-            setDraft({ publications: [{ kind: 'tuto', date: planDate, status: 'realise' }] })
+            setChoosing({ date: planDate })
             setPlanDate(null)
           }}
         />
+      )}
+
+      {choosing && (
+        <Sheet title="Ajouter" onClose={() => setChoosing(null)}>
+          <div className="chooser">
+            <button
+              onClick={() => {
+                setDraft(choosing.date ? { publications: [{ kind: 'tuto', date: choosing.date, status: 'realise' }] } : {})
+                setChoosing(null)
+              }}
+            >
+              <span>💄</span>
+              <span>Nouveau makeup<small>Un look, avec ses tutos, photos et vidéos</small></span>
+            </button>
+            <button
+              onClick={() => {
+                setRecapDraft(choosing.date ? { date: choosing.date } : {})
+                setChoosing(null)
+              }}
+            >
+              <span>🎞️</span>
+              <span>Nouveau récap<small>Une vidéo qui regroupe plusieurs makeups</small></span>
+            </button>
+          </div>
+        </Sheet>
+      )}
+
+      {recapDraft && (
+        <Sheet title={recapDraft.id ? 'Modifier le récap' : 'Nouveau récap'} onClose={() => setRecapDraft(null)}>
+          <RecapForm
+            initial={recapDraft}
+            makeups={makeups}
+            onCancel={() => setRecapDraft(null)}
+            onSaved={async () => {
+              setRecapDraft(null)
+              await reload()
+            }}
+          />
+        </Sheet>
       )}
 
       {draft && (

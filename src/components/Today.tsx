@@ -1,4 +1,5 @@
 import { daysUntil, formatDate, toISO } from '../dates'
+import { isFiller } from '../types'
 import type { Pub, Status } from '../types'
 import { PubCard } from './PubCard'
 
@@ -22,7 +23,7 @@ export function Today({
   const today = inDays(0, 0)
   const urgent = inDays(1, 2)
   const week = inDays(3, 7)
-  const readyFillers = pending.filter((p) => !p.date && p.kind !== 'tuto' && p.status === 'pret')
+  const readyFillers = pending.filter((p) => !p.date && isFiller(p) && p.status === 'pret')
 
   // Jours des 7 prochains jours sans aucune publication prévue
   const busy = new Set(pubs.map((p) => p.date))

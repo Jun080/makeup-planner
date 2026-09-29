@@ -30,12 +30,14 @@ create table if not exists public.makeups (
 
 create index if not exists makeups_date_idx on public.makeups (date);
 
--- ---------- Publications (ce qui est posté à partir d'un makeup) ----------
+-- ---------- Publications (ce qui est posté à partir d'un makeup, ou un récap de plusieurs makeups) ----------
 create table if not exists public.publications (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null default auth.uid() references auth.users on delete cascade,
-  makeup_id   uuid not null references public.makeups on delete cascade,
-  kind        text not null check (kind in ('tuto', 'photo', 'video')),
+  makeup_id   uuid references public.makeups on delete cascade, -- vide pour un récap
+  kind        text not null
+              constraint publications_kind_check check (kind in ('tuto', 'photo', 'video', 'recap')),
+  title       text,                       -- titre d'un récap
   date        date,                       -- date de publication (vide = en réserve)
   status      text not null default 'realise'
               check (status in ('a_faire', 'realise', 'montage', 'pret', 'publie')),
@@ -43,6 +45,14 @@ create table if not exists public.publications (
 );
 
 create index if not exists publications_date_idx on public.publications (date);
+
+-- ---------- Makeups présents dans un récap ----------
+create table if not exists public.publication_makeups (
+  publication_id uuid not null references public.publications on delete cascade,
+  makeup_id      uuid not null references public.makeups on delete cascade,
+  user_id        uuid not null default auth.uid() references auth.users on delete cascade,
+  primary key (publication_id, makeup_id)
+);
 
 -- ---------- Produits utilisés dans un makeup ----------
 create table if not exists public.makeup_products (
@@ -66,12 +76,14 @@ alter table public.products        enable row level security;
 alter table public.makeups         enable row level security;
 alter table public.makeup_products enable row level security;
 alter table public.publications    enable row level security;
+alter table public.publication_makeups enable row level security;
 alter table public.ideas           enable row level security;
 
 drop policy if exists "own rows" on public.products;
 drop policy if exists "own rows" on public.makeups;
 drop policy if exists "own rows" on public.makeup_products;
 drop policy if exists "own rows" on public.publications;
+drop policy if exists "own rows" on public.publication_makeups;
 drop policy if exists "own rows" on public.ideas;
 
 create policy "own rows" on public.products
@@ -81,6 +93,8 @@ create policy "own rows" on public.makeups
 create policy "own rows" on public.makeup_products
   for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 create policy "own rows" on public.publications
+  for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "own rows" on public.publication_makeups
   for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 create policy "own rows" on public.ideas
   for all using (user_id = auth.uid()) with check (user_id = auth.uid());

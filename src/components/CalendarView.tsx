@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { daysUntil, toISO, todayISO } from '../dates'
-import { PUB_KINDS, STATUSES, STATUS_ORDER } from '../types'
+import { KIND_ICONS, PUB_KINDS, STATUSES, STATUS_ORDER } from '../types'
 import type { Pub, Status } from '../types'
 import { PubCard } from './PubCard'
+import { Thumb } from './Thumb'
 
 const WEEKDAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
-const KIND_ICONS = { tuto: '🎬', photo: '📸', video: '🎥' } as const
 const VIEW_KEY = 'calendar-view'
 
 type View = 'week' | 'month'
@@ -174,7 +174,7 @@ function PubLine({ pub, onOpen }: { pub: Pub; onOpen: () => void }) {
     <button className={`pub-line status-border-${pub.status} ${isLate(pub) ? 'late' : ''}`} onClick={onOpen}>
       <MiniThumb pub={pub} />
       <span className="pub-line-text">
-        <strong>{pub.makeup.title}</strong>
+        <strong>{pub.displayTitle}</strong>
         <small>
           {PUB_KINDS[pub.kind]}
           {isLate(pub) && ' · en retard'}
@@ -188,8 +188,8 @@ function PubLine({ pub, onOpen }: { pub: Pub; onOpen: () => void }) {
 /** Miniature ronde : photo du makeup (ou icône du type), cerclée de la couleur de l'étape. */
 function MiniThumb({ pub }: { pub: Pub }) {
   return (
-    <span className={`mini-thumb ring-${pub.status}`} title={`${PUB_KINDS[pub.kind]} · ${pub.makeup.title}`}>
-      {pub.makeup.photo_url ? <img src={pub.makeup.photo_url} alt="" loading="lazy" /> : <span>{KIND_ICONS[pub.kind]}</span>}
+    <span className={`mini-thumb ring-${pub.status}`} title={`${PUB_KINDS[pub.kind]} · ${pub.displayTitle}`}>
+      <Thumb urls={pub.photos} icon={KIND_ICONS[pub.kind]} className="mini-inner" />
     </span>
   )
 }
