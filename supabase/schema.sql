@@ -25,6 +25,7 @@ create table if not exists public.makeups (
   collab_with text,
   notes       text,
   photo_path  text,                       -- chemin de la photo dans Storage
+  abandoned_at timestamptz,               -- rempli = contenu abandonné (masqué du planning)
   created_at  timestamptz not null default now()
 );
 
@@ -38,6 +39,7 @@ create table if not exists public.publications (
   kind        text not null
               constraint publications_kind_check check (kind in ('tuto', 'photo', 'video', 'recap')),
   title       text,                       -- titre d'un récap
+  abandoned_at timestamptz,               -- récap abandonné
   date        date,                       -- date de publication (vide = en réserve)
   status      text not null default 'realise'
               check (status in ('a_faire', 'realise', 'montage', 'pret', 'publie')),

@@ -7,7 +7,7 @@ const PHOTO_BUCKET = 'makeup-photos'
 
 export type PublicationDraft = Omit<Publication, 'id' | 'makeup_id' | 'title'> & { id?: string }
 export type RecapInput = Pick<Recap, 'title' | 'date' | 'status' | 'makeup_ids'> & { id?: string }
-export type MakeupInput = Omit<Makeup, 'id' | 'publications' | 'photo_url'> & { id?: string; publications: PublicationDraft[] }
+export type MakeupInput = Omit<Makeup, 'id' | 'publications' | 'photo_url' | 'abandoned_at'> & { id?: string; publications: PublicationDraft[] }
 
 export async function fetchAll() {
   const [m, p, i, r] = await Promise.all([
@@ -93,6 +93,15 @@ export async function saveRecap({ id, makeup_ids, ...fields }: RecapInput) {
       .insert(makeup_ids.map((makeup_id) => ({ publication_id: recapId, makeup_id })))
     if (ins.error) throw ins.error
   }
+}
+
+/** Abandonner (ou reprendre) un contenu ou un récap, sans rien supprimer. */
+export async function setAbandoned(table: 'makeups' | 'publications', id: string, abandoned: boolean) {
+  const { error } = await supabase
+    .from(table)
+    .update({ abandoned_at: abandoned ? new Date().toISOString() : null })
+    .eq('id', id)
+  if (error) throw error
 }
 
 export async function deleteRecap(id: string) {

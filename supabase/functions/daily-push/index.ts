@@ -18,7 +18,14 @@ const STATUSES: Record<string, string> = {
   publie: 'Publié',
 }
 
-type Pub = { kind: string; date: string | null; status: string; title: string | null; makeups: { title: string } | null }
+type Pub = {
+  kind: string
+  date: string | null
+  status: string
+  title: string | null
+  abandoned_at: string | null
+  makeups: { title: string; abandoned_at: string | null } | null
+}
 type Message = { title: string; body: string; tag: string; url: string }
 
 webpush.setVapidDetails(APP_URL, Deno.env.get('VAPID_PUBLIC_KEY')!, Deno.env.get('VAPID_PRIVATE_KEY')!)
@@ -120,9 +127,11 @@ Deno.serve(async (req) => {
   for (const userId of new Set(subs.map((s) => s.user_id))) {
     const { data: pubs } = await db
       .from('publications')
-      .select('kind, date, status, title, makeups!publications_makeup_id_fkey(title)')
+      .select('kind, date, status, title, abandoned_at, makeups!publications_makeup_id_fkey(title, abandoned_at)')
       .eq('user_id', userId)
-    const msg = (mode === 'morning' ? morning : evening)((pubs ?? []) as Pub[])
+    // Les contenus et récaps abandonnés sont ignorés
+    const active = ((pubs ?? []) as Pub[]).filter((p) => !p.abandoned_at && !p.makeups?.abandoned_at)
+    const msg = (mode === 'morning' ? morning : evening)(active)
     if (!msg) continue
 
     for (const s of subs.filter((x) => x.user_id === userId)) {

@@ -22,6 +22,7 @@ export function Search({
   const [brand, setBrand] = useState('')
   const [type, setType] = useState('')
   const [collab, setCollab] = useState('')
+  const [showAbandoned, setShowAbandoned] = useState(false)
 
   const productById = useMemo(() => new Map(products.map((p) => [p.id, p])), [products])
   const colors = unique(products.map((p) => p.color))
@@ -30,6 +31,7 @@ export function Search({
 
   const results = makeups
     .filter((m) => {
+      if (Boolean(m.abandoned_at) !== showAbandoned) return false
       const used = m.product_ids.map((id) => productById.get(id)).filter((p): p is Product => Boolean(p))
       if (q && !`${m.title} ${m.notes ?? ''}`.toLowerCase().includes(q.toLowerCase())) return false
       if (color && !used.some((p) => p.color?.trim() === color)) return false
@@ -69,6 +71,10 @@ export function Search({
           <option value="non">Sans collab</option>
           {collabs.map((c) => <option key={c} value={`@${c}`}>{c}</option>)}
         </select>
+      </div>
+      <div className="segmented">
+        <button className={showAbandoned ? '' : 'on'} onClick={() => setShowAbandoned(false)}>En cours</button>
+        <button className={showAbandoned ? 'on' : ''} onClick={() => setShowAbandoned(true)}>Abandonnés</button>
       </div>
       <p className="muted">{results.length} résultat{results.length > 1 ? 's' : ''}</p>
       {results.map((m) => <MakeupCard key={m.id} makeup={m} onOpen={() => onOpen(m)} />)}

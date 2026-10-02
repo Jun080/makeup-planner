@@ -27,7 +27,8 @@ Un **🎞️ récap** est une publication qui regroupe plusieurs makeups (ex : r
    (Si tu avais déjà lancé une ancienne version de `schema.sql`, lance plutôt les migrations
    dans l'ordre : [`migration_002_publications.sql`](supabase/migration_002_publications.sql)
    puis [`migration_003_photos.sql`](supabase/migration_003_photos.sql), [`migration_004_push.sql`](supabase/migration_004_push.sql)
-   et [`migration_005_recaps.sql`](supabase/migration_005_recaps.sql).)
+   [`migration_005_recaps.sql`](supabase/migration_005_recaps.sql)
+   et [`migration_006_abandon.sql`](supabase/migration_006_abandon.sql).)
 3. Menu **Authentication** → **Users** → **Add user** → **Create new user** : ton email + un mot de passe
    (coche « Auto Confirm User »). C'est avec ça que tu te connecteras.
 4. Menu **Authentication** → **Sign In / Providers** → désactive **Allow new users to sign up**

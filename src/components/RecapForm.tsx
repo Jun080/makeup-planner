@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
 import { Check, Layers } from 'lucide-react'
-import { deleteRecap, saveRecap } from '../data'
+import { deleteRecap, saveRecap, setAbandoned } from '../data'
 import { formatDate, toISO } from '../dates'
 import { CATEGORY_INFO, STATUSES, STATUS_ORDER } from '../types'
 import type { Makeup, Recap, Status } from '../types'
 import { Thumb } from './Thumb'
+import { ask } from './ConfirmDialog'
 
 export type RecapDraft = Partial<Recap>
 
@@ -40,14 +41,16 @@ export function RecapForm({
   const [date, setDate] = useState(initial.date ?? '')
   const [status, setStatus] = useState<Status>(initial.status ?? 'realise')
   const [selected, setSelected] = useState<string[]>(
-    initial.makeup_ids ?? makeups.filter((m) => inMonth(m, month)).map((m) => m.id),
+    initial.makeup_ids ?? makeups.filter((m) => !m.abandoned_at && inMonth(m, month)).map((m) => m.id),
   )
   const [showAll, setShowAll] = useState(!isNew)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
   const list = useMemo(() => {
-    const shown = showAll ? makeups : makeups.filter((m) => inMonth(m, month) || selected.includes(m.id))
+    // Les contenus abandonnés ne sont plus proposés (sauf s'ils sont déjà dans le récap)
+    const active = makeups.filter((m) => !m.abandoned_at || selected.includes(m.id))
+    const shown = showAll ? active : active.filter((m) => inMonth(m, month) || selected.includes(m.id))
     return [...shown].sort((a, b) => b.date.localeCompare(a.date))
   }, [makeups, month, showAll, selected])
 
@@ -56,7 +59,7 @@ export function RecapForm({
     // Nouveau récap : on suit le mois choisi (titre + makeups du mois)
     if (isNew) {
       if (title === `Récap ${monthName(month)}`) setTitle(`Récap ${monthName(ym)}`)
-      setSelected(makeups.filter((m) => inMonth(m, ym)).map((m) => m.id))
+      setSelected(makeups.filter((m) => !m.abandoned_at && inMonth(m, ym)).map((m) => m.id))
     }
     setMonth(ym)
   }
@@ -75,8 +78,31 @@ export function RecapForm({
     }
   }
 
+  async function toggleAbandon() {
+    if (!initial.id) return
+    const abandon = !initial.abandoned_at
+    if (
+      abandon &&
+      !(await ask({
+        title: 'Abandonner ce récap ?',
+        message: 'Il disparaîtra du planning. Tu pourras le reprendre depuis le pipeline.',
+        confirmLabel: 'Abandonner',
+      }))
+    )
+      return
+    await setAbandoned('publications', initial.id, abandon)
+    onSaved()
+  }
+
   async function remove() {
-    if (!initial.id || !confirm('Supprimer ce récap ? (les contenus sont conservés)')) return
+    if (!initial.id) return
+    const ok = await ask({
+      title: 'Supprimer ce récap ?',
+      message: 'Les contenus qu’il regroupe sont conservés.',
+      confirmLabel: 'Supprimer',
+      danger: true,
+    })
+    if (!ok) return
     await deleteRecap(initial.id)
     onSaved()
   }
@@ -85,6 +111,12 @@ export function RecapForm({
 
   return (
     <form className="form" onSubmit={submit}>
+      {initial.abandoned_at && (
+        <div className="abandoned-banner">
+          <span>Abandonné le {formatDate(initial.abandoned_at.slice(0, 10))}</span>
+          <button type="button" className="primary" onClick={toggleAbandon}>Reprendre</button>
+        </div>
+      )}
       {selectedPhotos.some(Boolean) && <Thumb urls={selectedPhotos} className="recap-preview" icon={Layers} />}
 
       <label>Titre<input value={title} onChange={(e) => setTitle(e.target.value)} required /></label>
@@ -123,6 +155,9 @@ export function RecapForm({
       </fieldset>
 
       {error && <p className="error">{error}</p>}
+      {initial.id && !initial.abandoned_at && (
+        <button type="button" className="abandon-btn" onClick={toggleAbandon}>Abandonner ce récap</button>
+      )}
       <div className="actions">
         {initial.id && <button type="button" className="danger" onClick={remove}>Supprimer</button>}
         <button type="button" onClick={onCancel}>Annuler</button>

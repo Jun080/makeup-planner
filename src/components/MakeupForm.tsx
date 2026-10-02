@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Camera, X } from 'lucide-react'
-import { saveMakeup, deleteRow, deletePhoto, uploadPhoto, type PublicationDraft } from '../data'
-import { daysUntil, todayISO } from '../dates'
+import { saveMakeup, deleteRow, deletePhoto, setAbandoned, uploadPhoto, type PublicationDraft } from '../data'
+import { daysUntil, formatDate, todayISO } from '../dates'
 import { CATEGORIES, CATEGORY_INFO, PUB_KINDS, STATUSES, STATUS_ORDER, productLabel } from '../types'
 import type { Category, Makeup, MakeupPubKind, Product, Status } from '../types'
 import { ProductForm } from './ProductForm'
 import { Sheet } from './Sheet'
+import { ask } from './ConfirmDialog'
 
 const MAKEUP_KINDS: MakeupPubKind[] = ['tuto', 'photo', 'video']
 
@@ -118,8 +119,31 @@ export function MakeupForm({
     }
   }
 
+  async function toggleAbandon() {
+    if (!initial.id) return
+    const abandon = !initial.abandoned_at
+    if (
+      abandon &&
+      !(await ask({
+        title: 'Abandonner ce contenu ?',
+        message: 'Il disparaîtra du planning. Tu pourras le reprendre depuis la recherche ou le pipeline.',
+        confirmLabel: 'Abandonner',
+      }))
+    )
+      return
+    await setAbandoned('makeups', initial.id, abandon)
+    onSaved()
+  }
+
   async function remove() {
-    if (!initial.id || !confirm('Supprimer ce contenu et ses publications ?')) return
+    if (!initial.id) return
+    const ok = await ask({
+      title: 'Supprimer ce contenu ?',
+      message: 'Ses publications et sa photo seront supprimées définitivement.',
+      confirmLabel: 'Supprimer',
+      danger: true,
+    })
+    if (!ok) return
     await deleteRow('makeups', initial.id)
     if (initial.photo_path) await deletePhoto(initial.photo_path)
     onSaved()
@@ -127,6 +151,12 @@ export function MakeupForm({
 
   return (
     <form className="form" onSubmit={submit}>
+      {initial.abandoned_at && (
+        <div className="abandoned-banner">
+          <span>Abandonné le {formatDate(initial.abandoned_at.slice(0, 10))}</span>
+          <button type="button" className="primary" onClick={toggleAbandon}>Reprendre</button>
+        </div>
+      )}
       <div className="chips">
         {(Object.keys(CATEGORIES) as Category[]).map((c) => (
           <button type="button" key={c} className={`chip ${category === c ? 'on' : ''}`} onClick={() => changeCategory(c)}>
@@ -233,6 +263,9 @@ export function MakeupForm({
       <label>Notes<textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} /></label>
 
       {error && <p className="error">{error}</p>}
+      {initial.id && !initial.abandoned_at && (
+        <button type="button" className="abandon-btn" onClick={toggleAbandon}>Abandonner ce contenu</button>
+      )}
       <div className="actions">
         {initial.id && <button type="button" className="danger" onClick={remove}>Supprimer</button>}
         <button type="button" onClick={onCancel}>Annuler</button>

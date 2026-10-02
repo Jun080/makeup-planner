@@ -6,6 +6,7 @@ import type { Pub, Status } from '../types'
 import { isLate, MiniThumb, PubLine } from './PubBits'
 import { PubCard } from './PubCard'
 import { Thumb } from './Thumb'
+import { ask } from './ConfirmDialog'
 
 export type Move = { pub: Pub; date: string }
 type ReserveTab = 'photo' | 'video' | 'a_faire'
@@ -68,14 +69,19 @@ export function Today({
   // 4 · À rattraper
   const late = pubs.filter(isLate).sort(byDate)
 
-  function spreadLate() {
+  async function spreadLate() {
     const busy = new Set(pubs.filter((p) => !isLate(p)).map((p) => p.date))
     const free: string[] = []
     for (let i = 0; free.length < late.length && i < 120; i++) if (!busy.has(isoIn(i))) free.push(isoIn(i))
     const moves = late.slice(0, free.length).map((pub, i) => ({ pub, date: free[i] }))
     if (!moves.length) return
-    const msg = `Replacer ${moves.length} post${moves.length > 1 ? 's' : ''} en retard sur les jours vides, du ${formatDate(moves[0].date)} au ${formatDate(moves[moves.length - 1].date)} ?`
-    if (confirm(msg)) {
+    const plural = moves.length > 1 ? 's' : ''
+    const ok = await ask({
+      title: `Replacer ${moves.length} post${plural} en retard ?`,
+      message: `Ils seront répartis sur les jours vides, du ${formatDate(moves[0].date)} au ${formatDate(moves[moves.length - 1].date)}.`,
+      confirmLabel: 'Répartir',
+    })
+    if (ok) {
       onMove(moves)
       setShowLate(false)
     }

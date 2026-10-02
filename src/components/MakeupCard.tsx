@@ -5,12 +5,16 @@ import type { Makeup } from '../types'
 
 export function MakeupCard({ makeup, onOpen }: { makeup: Makeup; onOpen: () => void }) {
   return (
-    <article className="card with-thumb" onClick={onOpen}>
+    <article className={`card with-thumb ${makeup.abandoned_at ? 'abandoned' : ''}`} onClick={onOpen}>
       <Thumb urls={[makeup.photo_url]} icon={CATEGORY_INFO[makeup.category].icon} />
       <div className="card-body">
         <div className="card-top">
           <strong>{makeup.title}</strong>
-          {makeup.category !== 'makeup' && <span className="badge">{CATEGORIES[makeup.category]}</span>}
+          {makeup.abandoned_at ? (
+            <span className="badge">Abandonné</span>
+          ) : (
+            makeup.category !== 'makeup' && <span className="badge">{CATEGORIES[makeup.category]}</span>
+          )}
         </div>
         <div className="card-meta">
           <span>Tourné le {formatDate(makeup.date)}</span>

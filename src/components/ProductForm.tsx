@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { saveProduct, deleteRow } from '../data'
 import type { Product } from '../types'
+import { ask } from './ConfirmDialog'
 
 export function ProductForm({
   initial,
@@ -40,7 +41,14 @@ export function ProductForm({
   }
 
   async function remove() {
-    if (!initial || !confirm('Supprimer ce produit ?')) return
+    if (!initial) return
+    const ok = await ask({
+      title: 'Supprimer ce produit ?',
+      message: 'Il sera retiré des contenus qui l’utilisent.',
+      confirmLabel: 'Supprimer',
+      danger: true,
+    })
+    if (!ok) return
     await deleteRow('products', initial.id)
     onSaved(initial.id)
   }

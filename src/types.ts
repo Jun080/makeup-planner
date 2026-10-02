@@ -20,6 +20,7 @@ export interface Publication {
   id: string
   makeup_id: string | null // vide pour un récap
   title: string | null // titre d'un récap
+  abandoned_at?: string | null // récap abandonné
   kind: PubKind
   date: string | null // YYYY-MM-DD, null = en réserve
   status: Status
@@ -35,6 +36,7 @@ export interface Makeup {
   notes: string | null
   photo_path: string | null // chemin dans Supabase Storage
   photo_url: string | null // lien temporaire pour l'afficher (calculé, pas stocké)
+  abandoned_at: string | null // rempli = abandonné
   product_ids: string[]
   publications: Publication[]
 }
@@ -133,11 +135,12 @@ export const isFiller = (p: Publication) => p.kind === 'photo' || p.kind === 'vi
 const photosOf = (list: Makeup[]) => list.flatMap((m) => (m.photo_url ? [m.photo_url] : []))
 
 export function allPubs(makeups: Makeup[], recaps: Recap[]): Pub[] {
+  // Les contenus abandonnés sortent du planning (accueil, calendrier, pipeline, retards)
   const byId = new Map(makeups.map((m) => [m.id, m]))
-  const fromMakeups = makeups.flatMap((m) =>
+  const fromMakeups = makeups.filter((m) => !m.abandoned_at).flatMap((m) =>
     m.publications.map((p) => ({ ...p, displayTitle: m.title, makeups: [m], photos: photosOf([m]) })),
   )
-  const fromRecaps = recaps.map((r) => {
+  const fromRecaps = recaps.filter((r) => !r.abandoned_at).map((r) => {
     const list = r.makeup_ids.flatMap((id) => byId.get(id) ?? [])
     return { ...r, displayTitle: r.title || 'Récap', makeups: list, photos: photosOf(list) }
   })

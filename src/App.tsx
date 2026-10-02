@@ -17,6 +17,7 @@ import { Search } from './components/Search'
 import { Products } from './components/Products'
 import { Ideas } from './components/Ideas'
 import { PlanSheet } from './components/PlanSheet'
+import { ConfirmHost } from './components/ConfirmDialog'
 import { RecapForm, type RecapDraft } from './components/RecapForm'
 
 const NEW_CHOICES: { category: Category; hint: string }[] = [
@@ -167,7 +168,16 @@ export default function App() {
           <Today pubs={pubs} onOpen={openPub} onAdvance={advance} onPlan={setPlanDate} onMove={moveAll} />
         )}
         {tab === 'calendar' && <CalendarView pubs={pubs} onOpen={openPub} onAdvance={advance} onPlan={setPlanDate} />}
-        {tab === 'pipeline' && <Pipeline pubs={pubs} onOpen={openPub} onAdvance={advance} />}
+        {tab === 'pipeline' && (
+          <Pipeline
+            pubs={pubs}
+            onOpen={openPub}
+            onAdvance={advance}
+            abandoned={{ makeups: makeups.filter((m) => m.abandoned_at), recaps: recaps.filter((r) => r.abandoned_at) }}
+            onOpenMakeup={open}
+            onOpenRecap={setRecapDraft}
+          />
+        )}
         {tab === 'search' && <Search makeups={makeups} products={products} onOpen={open} />}
         {tab === 'products' && <Products products={products} onChanged={async () => void (await reload())} />}
         {tab === 'ideas' && (
@@ -273,6 +283,7 @@ export default function App() {
           />
         </Sheet>
       )}
+      <ConfirmHost />
     </div>
   )
 }

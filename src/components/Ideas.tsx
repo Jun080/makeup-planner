@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { deleteRow, saveIdea } from '../data'
 import type { Idea } from '../types'
+import { ask } from './ConfirmDialog'
 
 export function Ideas({
   ideas,
@@ -24,7 +25,7 @@ export function Ideas({
   }
 
   async function remove(idea: Idea) {
-    if (!confirm('Supprimer cette idée ?')) return
+    if (!(await ask({ title: 'Supprimer cette idée ?', confirmLabel: 'Supprimer', danger: true }))) return
     await deleteRow('ideas', idea.id)
     await onChanged()
   }
