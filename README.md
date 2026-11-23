@@ -10,13 +10,30 @@ Un **makeup** (le look, réalisé une fois, avec sa photo et ses produits) conti
 Une publication sans date est **en réserve** : parfaite pour combler un jour vide entre deux tutos.
 Un **🎞️ récap** est une publication qui regroupe plusieurs makeups (ex : récap du mois).
 
-- **Accueil** : 🚨 urgents (J-1 / J-2), aujourd'hui, en retard, jours vides de la semaine
+- **Accueil** : aujourd'hui, « Plus le temps ? » (dates limites), **Ta semaine** (rêve posté / rêve tourné,
+  objectifs 2 tutos + 1 carrousel, puis chaque jour restant avec J-X : posts, tournages, stories), à monter, en retard
   (touche un jour pour y placer une publication en réserve), photos & vidéos prêtes à caser
-- **Calendrier** : vue mois des publications (■ tuto, ● photo / vidéo, couleur = étape)
+- **Calendrier** : vue semaine ou mois ; chaque jour affiche les posts, les tournages et les rendez-vous stories
+  (sondage Insta le vendredi, annonce du thème le samedi, teaser en fin de carrousel le dimanche)
 - **Pipeline** : À faire → Réalisé → Montage → Prêt → Publié, par publication
 - **Recherche** : makeups filtrés par couleur, marque, type (makeup / unboxing / swatch, avec tuto / photo / vidéo) et collab
 - **Produits** : marque, produit, nom, couleur, PR / offert
-- **Idées** : noter des looks, puis « → Planifier » pour les transformer en makeup
+- **Idées** : une banque de **thèmes de rêves** (2 sont proposés au sondage de chaque vendredi, le gagnant sort de la liste
+  quand le rêve est créé), et des idées de looks à transformer en makeup avec « → Planifier »
+- **Insta / TikTok** : le jour J, un bouton par réseau ; l'accueil rappelle un post publié sur un seul des deux
+- **Stats** : 2 jours après un post, l'accueil demande vues, abonnés gagnés, enregistrements et partages, pour Insta
+  et pour TikTok. L'onglet Stats compare les réseaux, les formats (tuto principal, version graphique, visage entier…)
+  et les rêves par abonnés gagnés pour 1 000 vues, sur les deux réseaux ou un seul
+- **Rêves** (+ → Nouveau rêve) : 1 rêve = 1 thème = 1 semaine. On tourne la semaine N (lundi tuto principal, mercredi
+  tuto graphique, jeudi visage entier, + vendredi version 5 min facultative), on poste la semaine N+1 les mêmes jours, puis le carrousel « tu préfères lequel ? »
+  (« tu préfères quel look du dream ? ») le dimanche. Le thème peut rester vide jusqu'au vote : le renseigner renomme les contenus du rêve
+- **DA « Dream journal »** : dans chaque contenu, un rappel de la DA, le rêve et la place du makeup dans la semaine, l'accroche à l'écran
+  et une description prête à copier (question, appel à s'abonner, produits par marque en bas)
+- **Dates limites** : « À poster avant le » sur un contenu (raccourcis Saint-Valentin, Halloween, Noël, Nouvel An).
+  L'accueil liste dans « Plus le temps ? » ce qui est trop tard, prévu après la date limite, ou pas prêt à J-3 ;
+  un contenu périmé n'est plus proposé pour combler un jour vide ni replacé après sa date limite
+- **Séries** (+ → Nouvelle série) : un look à intervalle régulier, ex. calendrier de l'avent ouvert 2 cases
+  tous les 2 jours ; crée les tutos datés, un teaser la veille et un récap carrousel « tu préfères lequel ? »
 
 ## Installation (une seule fois)
 
@@ -28,7 +45,11 @@ Un **🎞️ récap** est une publication qui regroupe plusieurs makeups (ex : r
    dans l'ordre : [`migration_002_publications.sql`](supabase/migration_002_publications.sql)
    puis [`migration_003_photos.sql`](supabase/migration_003_photos.sql), [`migration_004_push.sql`](supabase/migration_004_push.sql)
    [`migration_005_recaps.sql`](supabase/migration_005_recaps.sql)
-   et [`migration_006_abandon.sql`](supabase/migration_006_abandon.sql).)
+   [`migration_006_abandon.sql`](supabase/migration_006_abandon.sql)
+   [`migration_007_da.sql`](supabase/migration_007_da.sql)
+   [`migration_008_deadline.sql`](supabase/migration_008_deadline.sql)
+   [`migration_009_dreams.sql`](supabase/migration_009_dreams.sql)
+   et [`migration_010_stats.sql`](supabase/migration_010_stats.sql).)
 3. Menu **Authentication** → **Users** → **Add user** → **Create new user** : ton email + un mot de passe
    (coche « Auto Confirm User »). C'est avec ça que tu te connecteras.
 4. Menu **Authentication** → **Sign In / Providers** → désactive **Allow new users to sign up**
@@ -71,11 +92,15 @@ Puis touche 🔔 en haut de l'appli pour autoriser les rappels.
 
 ## Notifications
 
-- **8h15** : résumé du jour (à poster aujourd'hui, à monter sur CapCut, retards, jours vides)
-- **20h15** : ce qui doit être posté demain, et si c'est prêt
+- **6h30** : seulement ce qui se fait aujourd'hui : à poster (prêt ou pas), à tourner, la story du jour
+  (sondage vendredi, annonce samedi, « Demain : Rêve n°X » dimanche, rêve à créer lundi), une date limite à J-3 pas prête.
+  Le dimanche, un rappel groupé des stats à noter. Le reste (à monter, réserve, retards) est sur l'accueil
+- **20h15** : un post publié aujourd'hui sur un seul réseau, puis ce qui doit être posté demain et si c'est prêt
 
 Fonctionnement : l'Edge Function [`supabase/functions/daily-push`](supabase/functions/daily-push/index.ts)
-est appelée toutes les heures par `pg_cron` et n'envoie qu'à 8h et 20h (heure de Paris).
+est appelée toutes les 15 minutes par `pg_cron` et n'envoie qu'à 6h30 et 20h15 (heure de Paris, réglable
+en haut du fichier). Si la tâche planifiée tourne encore toutes les heures, passe-la à 15 min dans le SQL Editor :
+`select cron.alter_job(jobid, schedule := '*/15 * * * *') from cron.job where command like '%daily-push%';`
 Sur iPhone, les notifications ne marchent que dans l'appli **installée sur l'écran d'accueil**.
 
 Mise en place : [`migration_004_push.sql`](supabase/migration_004_push.sql), déploiement de la fonction

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Camera, X } from 'lucide-react'
+import { Camera, Check, Copy, X } from 'lucide-react'
 import { saveMakeup, deleteRow, deletePhoto, setAbandoned, uploadPhoto, type PublicationDraft } from '../data'
 import { daysUntil, formatDate, todayISO } from '../dates'
-import { CATEGORIES, CATEGORY_INFO, PUB_KINDS, STATUSES, STATUS_ORDER, productLabel } from '../types'
-import type { Category, Makeup, MakeupPubKind, Product, Status } from '../types'
+import { buildCaption, CATEGORIES, CATEGORY_INFO, DA_REMINDER, DREAM_SLOTS, dreamLabel, EVENTS, HOOK_IDEAS, nextOccurrence, PUB_KINDS, QUESTION_IDEAS, STATUSES, STATUS_ORDER, productLabel } from '../types'
+import type { Category, Dream, Makeup, MakeupPubKind, Product, Status } from '../types'
 import { ProductForm } from './ProductForm'
 import { Sheet } from './Sheet'
 import { ask } from './ConfirmDialog'
@@ -18,12 +18,14 @@ type PhotoChange = null | File | 'removed'
 export function MakeupForm({
   initial,
   products,
+  dreams,
   onSaved,
   onCancel,
   onProductsChanged,
 }: {
   initial: MakeupDraft
   products: Product[]
+  dreams: Dream[]
   onSaved: () => void
   onCancel: () => void
   onProductsChanged: () => Promise<void>
@@ -34,6 +36,12 @@ export function MakeupForm({
   const [isCollab, setIsCollab] = useState(initial.is_collab ?? false)
   const [collabWith, setCollabWith] = useState(initial.collab_with ?? '')
   const [notes, setNotes] = useState(initial.notes ?? '')
+  const [dreamNo, setDreamNo] = useState<number | null>(initial.dream_no ?? null)
+  const [dreamSlot, setDreamSlot] = useState<number | null>(initial.dream_slot ?? null)
+  const [hook, setHook] = useState(initial.hook ?? '')
+  const [question, setQuestion] = useState(initial.question ?? '')
+  const [deadline, setDeadline] = useState(initial.deadline ?? '')
+  const [copied, setCopied] = useState(false)
   const info = CATEGORY_INFO[category]
   const defaultPubs = (c: Category): PublicationDraft[] =>
     CATEGORY_INFO[c].defaultKinds.map((kind) => ({ kind, date: null, status: 'realise' }))
@@ -107,6 +115,11 @@ export function MakeupForm({
         is_collab: isCollab,
         collab_with: collabWith.trim() || null,
         notes: notes.trim() || null,
+        dream_no: dreamNo,
+        dream_slot: dreamNo ? dreamSlot : null,
+        hook: hook.trim() || null,
+        question: question.trim() || null,
+        deadline: deadline || null,
         photo_path: photoPath,
         product_ids: productIds,
         publications: pubs,
@@ -116,6 +129,22 @@ export function MakeupForm({
     } catch (err) {
       setError((err as Error).message)
       setSaving(false)
+    }
+  }
+
+  const caption = buildCaption(
+    { title: title.trim() || 'Sans titre', dream_no: dreamNo, question },
+    products.filter((p) => productIds.includes(p.id)),
+    dreams.find((d) => d.no === dreamNo)?.theme,
+  )
+
+  async function copyCaption() {
+    try {
+      await navigator.clipboard.writeText(caption)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1800)
+    } catch {
+      setError('Copie impossible : sélectionne le texte à la main')
     }
   }
 
@@ -201,6 +230,30 @@ export function MakeupForm({
 
       <label>Date de tournage<input type="date" value={date} onChange={(e) => setDate(e.target.value)} required /></label>
 
+      <fieldset>
+        <label>
+          À poster avant le (facultatif)
+          <input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+        </label>
+        <div className="chips small-chips">
+          {EVENTS.map((ev) => {
+            const iso = nextOccurrence(ev.md)
+            return (
+              <button type="button" key={ev.md} className={`chip ${deadline === iso ? 'on' : ''}`} onClick={() => setDeadline(iso)}>
+                {ev.label}
+              </button>
+            )
+          })}
+          {deadline && <button type="button" className="chip" onClick={() => setDeadline('')}>Pas de date limite</button>}
+        </div>
+        {deadline && daysUntil(deadline) < 0 && (
+          <p className="deadline-warn">La date limite est passée : ce contenu n’a sans doute plus de sens.</p>
+        )}
+        {deadline && pubs.some((p) => p.date && p.date > deadline) && (
+          <p className="deadline-warn">Une publication est prévue après le {formatDate(deadline)}.</p>
+        )}
+      </fieldset>
+
       <label className="check"><input type="checkbox" checked={isCollab} onChange={(e) => setIsCollab(e.target.checked)} /> Collab</label>
       {isCollab && (
         <label>Avec qui ?<input value={collabWith} onChange={(e) => setCollabWith(e.target.value)} placeholder="@compte" /></label>
@@ -210,19 +263,20 @@ export function MakeupForm({
         <legend>Publications ({pubs.length})</legend>
         {pubs.map((p, i) => (
           <div key={p.id ?? `new-${i}`} className="pub-row">
-            <select value={p.kind} onChange={(e) => updatePub(i, { kind: e.target.value as MakeupPubKind })}>
+            <select className="pub-kind" value={p.kind} onChange={(e) => updatePub(i, { kind: e.target.value as MakeupPubKind })}>
               {MAKEUP_KINDS.map((k) => <option key={k} value={k}>{PUB_KINDS[k]}</option>)}
             </select>
             <input
               type="date"
+              className="pub-date"
               value={p.date ?? ''}
               onChange={(e) => updatePub(i, { date: e.target.value || null })}
               aria-label="Date de publication"
             />
-            <select value={p.status} onChange={(e) => updatePub(i, { status: e.target.value as Status })}>
+            <select className="pub-status" value={p.status} onChange={(e) => updatePub(i, { status: e.target.value as Status })}>
               {STATUS_ORDER.map((s) => <option key={s} value={s}>{STATUSES[s]}</option>)}
             </select>
-            <button type="button" className="icon-btn" onClick={() => { setPubs(pubs.filter((_, j) => j !== i)); setPubsTouched(true) }} aria-label="Retirer"><X size={18} /></button>
+            <button type="button" className="icon-btn pub-remove" onClick={() => { setPubs(pubs.filter((_, j) => j !== i)); setPubsTouched(true) }} aria-label="Retirer"><X size={18} /></button>
           </div>
         ))}
         <p className="muted">Laisse la date vide pour garder la publication en réserve.</p>
@@ -231,6 +285,42 @@ export function MakeupForm({
           <button type="button" className="chip" onClick={() => addPub('photo')}>+ {PUB_KINDS.photo}</button>
           <button type="button" className="chip" onClick={() => addPub('video')}>+ {PUB_KINDS.video}</button>
         </div>
+      </fieldset>
+
+      <fieldset className="da">
+        <legend>Direction artistique</legend>
+        <ul className="da-reminder">
+          {DA_REMINDER.map((r) => <li key={r}>{r}</li>)}
+        </ul>
+        <div className="series-grid">
+          <label>
+            Rêve
+            <select value={dreamNo ?? ''} onChange={(e) => setDreamNo(e.target.value ? Number(e.target.value) : null)}>
+              <option value="">Aucun</option>
+              {/* Un ancien numéro sans rêve enregistré reste sélectionnable */}
+              {dreamNo !== null && !dreams.some((d) => d.no === dreamNo) && <option value={dreamNo}>Rêve n°{dreamNo}</option>}
+              {dreams.map((d) => <option key={d.id} value={d.no}>{dreamLabel(d)}</option>)}
+            </select>
+          </label>
+          {dreamNo !== null && (
+            <label>
+              Place dans la semaine
+              <select value={dreamSlot ?? ''} onChange={(e) => setDreamSlot(e.target.value ? Number(e.target.value) : null)}>
+                <option value="">—</option>
+                {DREAM_SLOTS.map((s) => <option key={s.slot} value={s.slot}>Makeup {s.slot} · {s.label}</option>)}
+              </select>
+            </label>
+          )}
+        </div>
+        <label>
+          Accroche à l’écran
+          <input value={hook} onChange={(e) => setHook(e.target.value)} placeholder="Le texte visible dès la 1re seconde" />
+        </label>
+        {!hook && (
+          <div className="chips small-chips">
+            {HOOK_IDEAS.map((h) => <button type="button" key={h} className="chip" onClick={() => setHook(h)}>{h}</button>)}
+          </div>
+        )}
       </fieldset>
 
       <fieldset>
@@ -258,6 +348,23 @@ export function MakeupForm({
           </Sheet>
         )}
         <button type="button" className="link" onClick={() => setAddingProduct(true)}>+ Nouveau produit</button>
+      </fieldset>
+
+      <fieldset>
+        <legend>Description</legend>
+        <label>
+          Question pour les commentaires
+          <input value={question} onChange={(e) => setQuestion(e.target.value)} placeholder="Vous en pensez quoi ?" />
+        </label>
+        {!question && (
+          <div className="chips small-chips">
+            {QUESTION_IDEAS.map((q) => <button type="button" key={q} className="chip" onClick={() => setQuestion(q)}>{q}</button>)}
+          </div>
+        )}
+        <pre className="caption">{caption}</pre>
+        <button type="button" className="chip copy-btn" onClick={copyCaption}>
+          {copied ? <><Check size={16} /> Copiée</> : <><Copy size={16} /> Copier la description</>}
+        </button>
       </fieldset>
 
       <label>Notes<textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} /></label>

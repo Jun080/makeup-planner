@@ -26,3 +26,30 @@ export function formatDate(iso: string) {
     month: 'short',
   })
 }
+
+/** Décale une date ISO de `days` jours. */
+export function addDays(iso: string, days: number) {
+  const [y, m, d] = iso.split('-').map(Number)
+  return toISO(new Date(y, m - 1, d + days))
+}
+
+/** Lundi de la semaine qui contient la date ISO. */
+export function mondayOf(iso: string) {
+  const [y, m, d] = iso.split('-').map(Number)
+  const day = (new Date(y, m - 1, d).getDay() + 6) % 7 // 0 = lundi
+  return addDays(iso, -day)
+}
+
+/** "aujourd'hui", "demain", "J-3", "hier", "il y a 3 j" */
+export function relativeDay(iso: string) {
+  const d = daysUntil(iso)
+  if (d === 0) return 'aujourd’hui'
+  if (d === 1) return 'demain'
+  if (d === -1) return 'hier'
+  return d > 0 ? `J-${d}` : `il y a ${-d} j`
+}
+
+export function weekdayLong(iso: string) {
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric' })
+}

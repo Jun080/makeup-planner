@@ -19,9 +19,14 @@ function defaultMonth() {
 const monthName = (ym: string) =>
   new Date(`${ym}-01T00:00`).toLocaleDateString('fr-FR', { month: 'long' })
 
-/** Makeups réalisés ou publiés pendant le mois `ym` (YYYY-MM). */
+/**
+ * Makeups publiés pendant le mois `ym` (YYYY-MM) : c'est ce que le public a vu ce mois-là.
+ * Les rêves sont tournés une semaine avant d'être postés, donc la date de tournage ne compte
+ * que pour un makeup sans aucune publication datée.
+ */
 function inMonth(m: Makeup, ym: string) {
-  return m.date.startsWith(ym) || m.publications.some((p) => p.date?.startsWith(ym))
+  const dated = m.publications.filter((p) => p.date)
+  return dated.length ? dated.some((p) => p.date!.startsWith(ym)) : m.date.startsWith(ym)
 }
 
 export function RecapForm({

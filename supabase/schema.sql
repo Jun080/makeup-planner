@@ -26,6 +26,11 @@ create table if not exists public.makeups (
   notes       text,
   photo_path  text,                       -- chemin de la photo dans Storage
   abandoned_at timestamptz,               -- rempli = contenu abandonné (masqué du planning)
+  dream_no    integer,                    -- Rêve n°X (voir la table dreams)
+  dream_slot  smallint check (dream_slot between 1 and 4), -- makeup 1 à 4 de la semaine du rêve
+  hook        text,                       -- accroche écrite à l'écran (1re seconde)
+  question    text,                       -- question en tête de description
+  deadline    date,                       -- à poster avant cette date (sinon ça n'a plus de sens)
   created_at  timestamptz not null default now()
 );
 
@@ -43,10 +48,41 @@ create table if not exists public.publications (
   date        date,                       -- date de publication (vide = en réserve)
   status      text not null default 'realise'
               check (status in ('a_faire', 'realise', 'montage', 'pret', 'publie')),
+  on_insta    boolean not null default false, -- en ligne sur Instagram
+  on_tiktok   boolean not null default false, -- en ligne sur TikTok
+  ig_views    integer,                    -- stats Instagram notées ~48 h après
+  ig_saves    integer,
+  ig_shares   integer,
+  ig_follows  integer,                    -- nouveaux abonnés
+  tt_views    integer,                    -- stats TikTok
+  tt_saves    integer,
+  tt_shares   integer,
+  tt_follows  integer,
+  stats_at    date,                       -- rempli = stats notées (ou passées)
   created_at  timestamptz not null default now()
 );
 
 create index if not exists publications_date_idx on public.publications (date);
+
+-- ---------- Rêves : 1 rêve = 1 thème = 1 semaine (tournage semaine N, posts semaine N+1) ----------
+create table if not exists public.dreams (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null default auth.uid() references auth.users on delete cascade,
+  no          integer not null,          -- Rêve n°X
+  theme       text,                      -- vide = thème pas encore voté
+  shoot_week  date not null,             -- lundi de la semaine de tournage
+  created_at  timestamptz not null default now(),
+  unique (user_id, no)
+);
+
+-- ---------- Banque de thèmes de rêves (pour les sondages du vendredi) ----------
+create table if not exists public.theme_ideas (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null default auth.uid() references auth.users on delete cascade,
+  name        text not null,
+  used_at     date,                       -- rempli = déjà devenu un rêve
+  created_at  timestamptz not null default now()
+);
 
 -- ---------- Makeups présents dans un récap ----------
 create table if not exists public.publication_makeups (
@@ -78,6 +114,8 @@ alter table public.products        enable row level security;
 alter table public.makeups         enable row level security;
 alter table public.makeup_products enable row level security;
 alter table public.publications    enable row level security;
+alter table public.dreams          enable row level security;
+alter table public.theme_ideas     enable row level security;
 alter table public.publication_makeups enable row level security;
 alter table public.ideas           enable row level security;
 
@@ -87,6 +125,8 @@ drop policy if exists "own rows" on public.makeup_products;
 drop policy if exists "own rows" on public.publications;
 drop policy if exists "own rows" on public.publication_makeups;
 drop policy if exists "own rows" on public.ideas;
+drop policy if exists "own rows" on public.dreams;
+drop policy if exists "own rows" on public.theme_ideas;
 
 create policy "own rows" on public.products
   for all using (user_id = auth.uid()) with check (user_id = auth.uid());
@@ -99,6 +139,10 @@ create policy "own rows" on public.publications
 create policy "own rows" on public.publication_makeups
   for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 create policy "own rows" on public.ideas
+  for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "own rows" on public.dreams
+  for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+create policy "own rows" on public.theme_ideas
   for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 
 -- ---------- Photos des makeups (Supabase Storage, privé) ----------

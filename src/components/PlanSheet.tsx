@@ -1,5 +1,5 @@
 import { formatDate } from '../dates'
-import { isFiller, pubIcon, PUB_KINDS, STATUSES } from '../types'
+import { deadlineOf, fitsDeadline, isFiller, pubIcon, PUB_KINDS, STATUSES } from '../types'
 import { Thumb } from './Thumb'
 import type { Pub } from '../types'
 import { Sheet } from './Sheet'
@@ -20,6 +20,8 @@ export function PlanSheet({
 }) {
   const reserve = pubs
     .filter((p) => !p.date && p.status !== 'publie')
+    // Pas de contenu dont la date limite tombe avant ce jour-là
+    .filter((p) => fitsDeadline(p, date))
     // Photos / vidéos prêtes en premier : ce sont les "jokers"
     .sort((a, b) => score(b) - score(a))
 
@@ -36,7 +38,10 @@ export function PlanSheet({
                   <strong>{p.displayTitle}</strong>
                   <span className={`badge status-${p.status}`}>{STATUSES[p.status]}</span>
                 </div>
-                <div className="card-meta"><span>{PUB_KINDS[p.kind]}</span></div>
+                <div className="card-meta">
+                  <span>{PUB_KINDS[p.kind]}</span>
+                  {deadlineOf(p) && <span>avant le {formatDate(deadlineOf(p)!)}</span>}
+                </div>
               </div>
             </article>
           ))}

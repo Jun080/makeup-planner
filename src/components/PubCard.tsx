@@ -1,5 +1,5 @@
 import { daysUntil, formatDate } from '../dates'
-import { CATEGORIES, pubIcon, PUB_KINDS, STATUSES, STATUS_ORDER } from '../types'
+import { CATEGORIES, deadlineIssue, deadlineOf, pubIcon, PUB_KINDS, STATUSES, STATUS_ORDER } from '../types'
 import { Thumb } from './Thumb'
 import type { Pub, Status } from '../types'
 
@@ -18,6 +18,8 @@ export function PubCard({
   // Bientôt (J-0 à J-2) et pas encore publié : petite étiquette plutôt qu'une carte colorée
   const soon = !published && d !== null && d >= 0 && d <= 2 ? (d === 0 ? 'Aujourd’hui' : d === 1 ? 'Demain' : 'Dans 2 j') : null
   const next = STATUS_ORDER[STATUS_ORDER.indexOf(pub.status) + 1]
+  const dl = deadlineOf(pub)
+  const issue = deadlineIssue(pub)
 
   let when = 'Pas de date'
   if (pub.date) {
@@ -37,6 +39,9 @@ export function PubCard({
           {soon && <span className="badge soon">{soon}</span>}
           <span>{PUB_KINDS[pub.kind]}</span>
           <span>{when}</span>
+          {dl && !published && (
+            <span className={issue ? `deadline-${issue.level}` : ''}>{issue ? issue.text : `avant le ${formatDate(dl)}`}</span>
+          )}
           {pub.kind === 'recap' && <span>{pub.makeups.length} contenu{pub.makeups.length > 1 ? 's' : ''}</span>}
           {pub.kind !== 'recap' && pub.makeups[0] && pub.makeups[0].category !== 'makeup' && (
             <span>{CATEGORIES[pub.makeups[0].category]}</span>

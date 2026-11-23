@@ -1,5 +1,7 @@
+import { todayISO } from './dates'
 import { supabase } from './supabase'
-import type { Idea, Makeup, Product, Publication, Recap } from './types'
+import { dreamCarouselTitle, dreamMakeupTitle } from './types'
+import type { Dream, Idea, Makeup, Product, Publication, PubStats, Recap, ThemeIdea } from './types'
 
 type MakeupRow = Omit<Makeup, 'product_ids' | 'photo_url'> & { makeup_products: { product_id: string }[] }
 
@@ -10,11 +12,13 @@ export type RecapInput = Pick<Recap, 'title' | 'date' | 'status' | 'makeup_ids'>
 export type MakeupInput = Omit<Makeup, 'id' | 'publications' | 'photo_url' | 'abandoned_at'> & { id?: string; publications: PublicationDraft[] }
 
 export async function fetchAll() {
-  const [m, p, i, r] = await Promise.all([
+  const [m, p, i, r, d, t] = await Promise.all([
     supabase.from('makeups').select('*, makeup_products(product_id), publications!publications_makeup_id_fkey(*)').order('date'),
     supabase.from('products').select('*').order('brand'),
     supabase.from('ideas').select('*').order('created_at', { ascending: false }),
     supabase.from('publications').select('*, publication_makeups(makeup_id)').eq('kind', 'recap'),
+    supabase.from('dreams').select('id, no, theme, shoot_week').order('no'),
+    supabase.from('theme_ideas').select('id, name, used_at, created_at').order('created_at'),
   ])
   const error = m.error ?? p.error ?? i.error ?? r.error
   if (error) throw error
@@ -36,7 +40,12 @@ export async function fetchAll() {
   const recaps: Recap[] = (r.data as (Recap & { publication_makeups: { makeup_id: string }[] })[]).map(
     ({ publication_makeups, ...row }) => ({ ...row, makeup_ids: publication_makeups.map((x) => x.makeup_id) }),
   )
-  return { makeups, recaps, products: p.data as Product[], ideas: i.data as Idea[] }
+  // Table des rêves absente tant que migration_009 n'est pas passée : l'appli marche sans
+  if (d.error) console.warn('Rêves :', d.error.message)
+  const dreams = (d.error ? [] : d.data) as Dream[]
+  if (t.error) console.warn('Thèmes :', t.error.message)
+  const themes = (t.error ? [] : t.data) as ThemeIdea[]
+  return { makeups, recaps, products: p.data as Product[], ideas: i.data as Idea[], dreams, themes }
 }
 
 export async function saveMakeup(m: MakeupInput) {
@@ -75,6 +84,7 @@ export async function saveMakeup(m: MakeupInput) {
     const ins = await supabase.from('publications').insert(fresh.map((p) => ({ ...p, makeup_id: makeupId })))
     if (ins.error) throw ins.error
   }
+  return makeupId
 }
 
 export async function saveRecap({ id, makeup_ids, ...fields }: RecapInput) {
@@ -109,12 +119,14 @@ export async function deleteRecap(id: string) {
   if (error) throw error
 }
 
-export async function updatePublication(id: string, patch: Partial<Pick<Publication, 'status' | 'date'>>) {
+export type PubPatch = Partial<Pick<Publication, 'status' | 'date'> & PubStats>
+
+export async function updatePublication(id: string, patch: PubPatch) {
   const { error } = await supabase.from('publications').update(patch).eq('id', id)
   if (error) throw error
 }
 
-export async function deleteRow(table: 'makeups' | 'products' | 'ideas', id: string) {
+export async function deleteRow(table: 'makeups' | 'products' | 'ideas' | 'theme_ideas', id: string) {
   const { error } = await supabase.from(table).delete().eq('id', id)
   if (error) throw error
 }
@@ -162,4 +174,59 @@ async function resizeImage(file: File, max: number): Promise<Blob> {
   return new Promise((resolve, reject) =>
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Image illisible'))), 'image/jpeg', 0.8),
   )
+}
+
+export type DreamInput = Omit<Dream, 'id'> & { id?: string }
+
+export async function saveDream({ id, ...fields }: DreamInput) {
+  const res = id
+    ? await supabase.from('dreams').update(fields).eq('id', id).select('id').single()
+    : await supabase.from('dreams').insert(fields).select('id').single()
+  if (res.error) throw res.error
+  return res.data.id as string
+}
+
+export async function deleteDream(id: string) {
+  const { error } = await supabase.from('dreams').delete().eq('id', id)
+  if (error) throw error
+}
+
+/**
+ * Après un changement de thème (résultat du vote) : renomme les makeups du rêve et son carrousel,
+ * seulement ceux qui portent encore le titre automatique.
+ */
+export async function renameDreamContent(
+  before: Pick<Dream, 'no' | 'theme'>,
+  after: Pick<Dream, 'no' | 'theme'>,
+  makeups: Makeup[],
+  recaps: Recap[],
+) {
+  for (const m of makeups) {
+    if (m.dream_no !== before.no || !m.dream_slot) continue
+    if (m.title !== dreamMakeupTitle(before, m.dream_slot)) continue
+    const { error } = await supabase
+      .from('makeups')
+      .update({ title: dreamMakeupTitle(after, m.dream_slot), dream_no: after.no })
+      .eq('id', m.id)
+    if (error) throw error
+  }
+  for (const r of recaps) {
+    if (r.title !== dreamCarouselTitle(before)) continue
+    const { error } = await supabase.from('publications').update({ title: dreamCarouselTitle(after) }).eq('id', r.id)
+    if (error) throw error
+  }
+}
+
+export async function saveThemeIdea(name: string) {
+  const { error } = await supabase.from('theme_ideas').insert({ name })
+  if (error) throw error
+}
+
+/** Le thème est devenu un rêve : il sort des propositions du vendredi. */
+export async function markThemeUsed(themes: ThemeIdea[], name: string | null) {
+  const key = name?.trim().toLowerCase()
+  const t = key && themes.find((x) => !x.used_at && x.name.trim().toLowerCase() === key)
+  if (!t) return
+  const { error } = await supabase.from('theme_ideas').update({ used_at: todayISO() }).eq('id', t.id)
+  if (error) console.warn('Thèmes :', error.message)
 }
