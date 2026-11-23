@@ -1,14 +1,15 @@
 import { useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { daysUntil, formatDate, toISO, todayISO } from '../dates'
-import { isFiller, pubIcon, PUB_KINDS, STATUSES, STATUS_ORDER } from '../types'
-import type { Pub, Status } from '../types'
-import { isLate, MiniThumb, PubLine } from './PubBits'
-import { PubCard } from './PubCard'
+import { deadlineIssue, fitsDeadline, isFiller, missingNetwork, needsStats, pubIcon, PUB_KINDS, STATUSES, STATUS_ORDER } from '../types'
+import type { Dream, Makeup, Pub, Status, ThemeIdea } from '../types'
+import { isLate, PubLine } from './PubBits'
+import { WeekPlan } from './WeekPlan'
 import { Thumb } from './Thumb'
 import { ask } from './ConfirmDialog'
 
 export type Move = { pub: Pub; date: string }
+export type Network = 'insta' | 'tiktok'
 type ReserveTab = 'photo' | 'video' | 'a_faire'
 
 const nextStatus = (s: Status) => STATUS_ORDER[STATUS_ORDER.indexOf(s) + 1] as Status | undefined
@@ -32,24 +33,39 @@ function when(p: Pub) {
 
 export function Today({
   pubs,
+  makeups,
+  dreams,
+  themes,
   onOpen,
+  onStats,
+  onPosted,
+  onOpenMakeup,
+  onOpenDream,
+  onNewDream,
   onAdvance,
   onPlan,
   onMove,
 }: {
   pubs: Pub[]
+  makeups: Makeup[]
+  dreams: Dream[]
+  themes: ThemeIdea[]
   onOpen: (p: Pub) => void
+  onStats: (p: Pub) => void
+  onPosted: (p: Pub, network: Network) => void
+  onOpenMakeup: (m: Makeup) => void
+  onOpenDream: (d: Dream) => void
+  onNewDream: () => void
   onAdvance: (p: Pub, s: Status) => void
   onPlan: (date: string) => void
   onMove: (moves: Move[]) => void
 }) {
-  const [openDay, setOpenDay] = useState<string | null>(null)
   const [showLate, setShowLate] = useState(false)
   const [reserveTab, setReserveTab] = useState<ReserveTab | null>(null)
 
   const today = todayISO()
   const pending = pubs.filter((p) => p.status !== 'publie')
-  const reserve = pending.filter((p) => !p.date)
+  const reserve = pending.filter((p) => !p.date && fitsDeadline(p, today))
 
   // 1 · Aujourd'hui
   const todayPubs = pubs.filter((p) => p.date === today)
@@ -62,18 +78,37 @@ export function Today({
     .sort(byDate)
     .slice(0, 4)
 
-  // 3 · Les 7 prochains jours
-  const days = Array.from({ length: 7 }, (_, i) => isoIn(i))
-  const onDay = (iso: string) => pubs.filter((p) => p.date === iso)
+  // Dates limites : trop tard, mal planifié, ou ça devient juste
+  const deadlines = pending
+    .flatMap((p) => {
+      const issue = deadlineIssue(p)
+      return issue ? [{ pub: p, issue }] : []
+    })
+    .sort((a, b) => Number(b.issue.level === 'late') - Number(a.issue.level === 'late'))
+
+  // À noter : posté sur un seul réseau (cette semaine), stats à 48 h
+  const toNote = pubs
+    .filter((p) => (missingNetwork(p) && p.date && daysUntil(p.date) >= -7 && p.date !== today) || needsStats(p, today))
+    .sort(byDate)
 
   // 4 · À rattraper
   const late = pubs.filter(isLate).sort(byDate)
 
   async function spreadLate() {
     const busy = new Set(pubs.filter((p) => !isLate(p)).map((p) => p.date))
-    const free: string[] = []
-    for (let i = 0; free.length < late.length && i < 120; i++) if (!busy.has(isoIn(i))) free.push(isoIn(i))
-    const moves = late.slice(0, free.length).map((pub, i) => ({ pub, date: free[i] }))
+    const moves: Move[] = []
+    // Chaque post va sur le 1er jour vide, sans dépasser sa date limite (sinon il reste où il est)
+    for (const pub of late) {
+      for (let i = 0; i < 120; i++) {
+        const iso = isoIn(i)
+        if (!fitsDeadline(pub, iso)) break
+        if (busy.has(iso)) continue
+        busy.add(iso)
+        moves.push({ pub, date: iso })
+        break
+      }
+    }
+    moves.sort((a, b) => a.date.localeCompare(b.date))
     if (!moves.length) return
     const plural = moves.length > 1 ? 's' : ''
     const ok = await ask({
@@ -106,24 +141,50 @@ export function Today({
         <h2>À poster aujourd’hui</h2>
         {todayPubs.map((p) => {
           const next = nextStatus(p.status)
+          // Prêt ou publié sur un seul réseau : un bouton par réseau
+          const networks =
+            p.on_insta !== undefined && (p.status === 'pret' || (p.status === 'publie' && !(p.on_insta && p.on_tiktok)))
+          const done = p.status === 'publie' && (p.on_insta === undefined || (p.on_insta && p.on_tiktok))
           return (
-            <article key={p.id} className={`hero ${p.status === 'publie' ? 'done' : ''}`} onClick={() => onOpen(p)}>
+            <article key={p.id} className={`hero ${done ? 'done' : ''}`} onClick={() => onOpen(p)}>
               <Thumb urls={p.photos} icon={pubIcon(p)} className="hero-thumb" />
               <div className="hero-body">
                 <strong>{p.displayTitle}</strong>
                 <small>{PUB_KINDS[p.kind]}</small>
                 <span className={`badge status-${p.status}`}>{STATUSES[p.status]}</span>
               </div>
-              {next && (
-                <button
-                  className="primary hero-action"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onAdvance(p, next)
-                  }}
-                >
-                  {next === 'publie' ? 'Marquer publié' : `→ ${STATUSES[next]}`}
-                </button>
+              {networks ? (
+                <div className="hero-networks">
+                  {(['insta', 'tiktok'] as Network[]).map((n) => {
+                    const on = n === 'insta' ? p.on_insta : p.on_tiktok
+                    const name = n === 'insta' ? 'Insta' : 'TikTok'
+                    return (
+                      <button
+                        key={n}
+                        className={`hero-action ${on ? '' : 'primary'}`}
+                        disabled={on}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onPosted(p, n)
+                        }}
+                      >
+                        {on ? `${name} ✓` : p.status === 'publie' ? `Aussi sur ${name}` : `Publié sur ${name}`}
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : (
+                next && (
+                  <button
+                    className="primary hero-action"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onAdvance(p, next)
+                    }}
+                  >
+                    {next === 'publie' ? 'Marquer publié' : `→ ${STATUSES[next]}`}
+                  </button>
+                )
               )}
             </article>
           )
@@ -145,6 +206,52 @@ export function Today({
         )}
       </section>
 
+      {/* Dates limites */}
+      {deadlines.length > 0 && (
+        <section>
+          <h2>Plus le temps ?</h2>
+          <div className="late-list deadline-list">
+            {deadlines.map(({ pub, issue }) => (
+              <PubLine key={pub.id} pub={pub} onOpen={() => onOpen(pub)} detail={issue.text} />
+            ))}
+          </div>
+          <p className="muted">Touche un contenu pour le replanifier, retirer sa date limite ou l’abandonner.</p>
+        </section>
+      )}
+
+      {/* À noter : autre réseau, stats */}
+      {toNote.length > 0 && (
+        <section>
+          <h2>À noter</h2>
+          <div className="late-list">
+            {toNote.map((p) => {
+              const missing = missingNetwork(p)
+              return (
+                <PubLine
+                  key={p.id}
+                  pub={p}
+                  onOpen={() => onStats(p)}
+                  detail={missing && p.date !== today ? `pas encore sur ${missing}` : 'note ses stats (48 h)'}
+                />
+              )
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Ta semaine : rêves, programme jour par jour */}
+      <WeekPlan
+        pubs={pubs}
+        makeups={makeups}
+        dreams={dreams}
+        themes={themes}
+        onOpenPub={onOpen}
+        onOpenMakeup={onOpenMakeup}
+        onOpenDream={onOpenDream}
+        onNewDream={onNewDream}
+        onPlan={onPlan}
+      />
+
       {/* 2 · Dans le train */}
       <section className="block-train">
         <h2>Dans le train</h2>
@@ -162,42 +269,6 @@ export function Today({
           )
         })}
         {!toEdit.length && <p className="muted">Rien à monter, profite du trajet.</p>}
-      </section>
-
-      {/* 3 · Les 7 prochains jours */}
-      <section>
-        <h2>Les 7 prochains jours</h2>
-        <div className="strip">
-          {days.map((iso, i) => {
-            const list = onDay(iso)
-            const notReady = i > 0 && i <= 2 && list.some((p) => p.status !== 'pret' && p.status !== 'publie')
-            const d = new Date(iso + 'T00:00')
-            return (
-              <button
-                key={iso}
-                className={`strip-day ${i === 0 ? 'today' : ''} ${notReady ? 'alert' : ''} ${openDay === iso ? 'selected' : ''} ${list.length ? '' : 'free'}`}
-                onClick={() => (list.length ? setOpenDay(openDay === iso ? null : iso) : onPlan(iso))}
-              >
-                <small>{d.toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', '')}</small>
-                <strong>{d.getDate()}</strong>
-                {list.length ? (
-                  <span className="strip-thumbs">
-                    {list.map((p) => <MiniThumb key={p.id} pub={p} />)}
-                  </span>
-                ) : (
-                  <span className="strip-plus">+</span>
-                )}
-              </button>
-            )
-          })}
-        </div>
-        {openDay && (
-          <div className="strip-detail">
-            {onDay(openDay).map((p) => (
-              <PubCard key={p.id} pub={p} onOpen={() => onOpen(p)} onAdvance={(s) => onAdvance(p, s)} />
-            ))}
-          </div>
-        )}
       </section>
 
       {/* 4 · À rattraper */}

@@ -1,9 +1,11 @@
 import { useState } from 'react'
+import { dayTasks, weekDreams } from '../agenda'
 import { toISO, todayISO } from '../dates'
-import { STATUSES, STATUS_ORDER } from '../types'
-import type { Pub, Status } from '../types'
+import { dreamLabel, STATUSES, STATUS_ORDER } from '../types'
+import type { Dream, Makeup, Pub, Status, ThemeIdea } from '../types'
 import { PubCard } from './PubCard'
-import { isLate, MiniThumb, PubLine } from './PubBits'
+import { isLate, MiniThumb } from './PubBits'
+import { TaskList } from './TaskList'
 
 const WEEKDAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
 const VIEW_KEY = 'calendar-view'
@@ -33,12 +35,24 @@ function addDays(d: Date, n: number) {
 
 export function CalendarView({
   pubs,
+  makeups,
+  dreams,
+  themes,
   onOpen,
+  onOpenMakeup,
+  onOpenDream,
+  onNewDream,
   onAdvance,
   onPlan,
 }: {
   pubs: Pub[]
+  makeups: Makeup[]
+  dreams: Dream[]
+  themes: ThemeIdea[]
   onOpen: (p: Pub) => void
+  onOpenMakeup: (m: Makeup) => void
+  onOpenDream: (d: Dream) => void
+  onNewDream: () => void
   onAdvance: (p: Pub, s: Status) => void
   onPlan: (iso: string) => void
 }) {
@@ -61,6 +75,14 @@ export function CalendarView({
   }
 
   const today = todayISO()
+  // Posts triés par étape, puis tournages et rendez-vous stories du jour
+  const tasksOf = (iso: string) => {
+    const order = new Map(dayPubs(iso).map((p, i) => [p.id, i]))
+    return dayTasks(iso, pubs, makeups, dreams, themes).sort((a, b) =>
+      a.type === 'post' && b.type === 'post' ? order.get(a.pub.id)! - order.get(b.pub.id)! : Number(a.type !== 'post') - Number(b.type !== 'post'),
+    )
+  }
+  const taskProps = { onOpenPub: onOpen, onOpenMakeup, onOpenDream, onNewDream }
 
   // ---------- Semaine ----------
   if (view === 'week') {
@@ -78,9 +100,12 @@ export function CalendarView({
           <button onClick={() => setAnchor(addDays(monday, 7))} aria-label="Semaine suivante">›</button>
         </div>
 
+        <WeekDreams iso={days[0]} dreams={dreams} onOpenDream={onOpenDream} />
+
         <div className="agenda">
           {days.map((iso) => {
             const list = dayPubs(iso)
+            const tasks = tasksOf(iso)
             const d = new Date(iso + 'T00:00')
             return (
               <div key={iso} className={`agenda-day ${iso === today ? 'today' : ''} ${iso < today ? 'past' : ''}`}>
@@ -89,7 +114,7 @@ export function CalendarView({
                   <strong>{d.getDate()}</strong>
                 </div>
                 <div className="agenda-items">
-                  {list.map((p) => <PubLine key={p.id} pub={p} onOpen={() => onOpen(p)} />)}
+                  <TaskList tasks={tasks} {...taskProps} />
                   {!list.length && (
                     <button className="agenda-empty" onClick={() => onPlan(iso)}>
                       {iso < today ? 'Rien' : '+ Jour vide — planifier'}
@@ -112,6 +137,7 @@ export function CalendarView({
   const cells: (string | null)[] = Array(offset).fill(null)
   for (let d = 1; d <= daysInMonth; d++) cells.push(toISO(new Date(month.getFullYear(), month.getMonth(), d)))
   const selectedList = dayPubs(selected)
+  const selectedOther = tasksOf(selected).filter((t) => t.type !== 'post')
 
   return (
     <div>
@@ -145,12 +171,18 @@ export function CalendarView({
         })}
       </div>
       <Legend />
+      <WeekDreams iso={selected} dreams={dreams} onOpenDream={onOpenDream} />
       <section>
         <h2>{new Date(selected + 'T00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</h2>
         {selectedList.map((p) => (
           <PubCard key={p.id} pub={p} onOpen={() => onOpen(p)} onAdvance={(s) => onAdvance(p, s)} />
         ))}
-        {!selectedList.length && <p className="muted">Rien de prévu ce jour-là.</p>}
+        {selectedOther.length > 0 && (
+          <div className="late-list">
+            <TaskList tasks={selectedOther} {...taskProps} />
+          </div>
+        )}
+        {!selectedList.length && <p className="muted">Aucun post prévu ce jour-là.</p>}
         <button className="link" onClick={() => onPlan(selected)}>+ Planifier ce jour-là</button>
       </section>
     </div>
@@ -176,3 +208,23 @@ export function Legend() {
   )
 }
 
+
+/** Bandeau des rêves de la semaine : celui qu'on poste et celui qu'on tourne. */
+function WeekDreams({ iso, dreams, onOpenDream }: { iso: string; dreams: Dream[]; onOpenDream: (d: Dream) => void }) {
+  const { posting, shooting } = weekDreams(iso, dreams)
+  if (!posting && !shooting) return null
+  return (
+    <div className="week-dreams">
+      {posting && (
+        <button onClick={() => onOpenDream(posting)}>
+          <small>On poste</small> {dreamLabel(posting)}
+        </button>
+      )}
+      {shooting && (
+        <button onClick={() => onOpenDream(shooting)}>
+          <small>On tourne</small> {dreamLabel(shooting)}
+        </button>
+      )}
+    </div>
+  )
+}
