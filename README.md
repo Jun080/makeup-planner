@@ -106,3 +106,20 @@ Sur iPhone, les notifications ne marchent que dans l'appli **installée sur l'é
 Mise en place : [`migration_004_push.sql`](supabase/migration_004_push.sql), déploiement de la fonction
 (JWT désactivé), secrets `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `CRON_SECRET`, puis la tâche planifiée
 (`secrets/cron.sql`, fichier local non versionné).
+
+## Raccourci iPhone (bouton Action, Siri)
+
+L'Edge Function [`supabase/functions/quick-add`](supabase/functions/quick-add/index.ts) ajoute une idée sans ouvrir l'appli.
+
+Mise en place (une fois) :
+1. **Edge Functions** → **Deploy a new function** → nom `quick-add` → colle le fichier → **Deploy**, puis désactive **Verify JWT**.
+2. **Edge Functions** → **Secrets** → ajoute `SHORTCUT_TOKEN` : une longue suite de lettres et chiffres inventée (c'est le mot de passe du Raccourci).
+3. Dans l'app **Raccourcis** : nouveau raccourci « Idée makeup » avec
+   - **Dicter le texte** (ou **Demander une entrée** pour taper)
+   - **Obtenir le contenu de l'URL** : `https://<id-du-projet>.supabase.co/functions/v1/quick-add`, méthode **POST**,
+     en-tête `x-shortcut-token` = ton jeton, corps **JSON** : `type` = `idee`, `text` = *Texte dicté*
+   - **Obtenir la valeur du dictionnaire** `message`, puis **Afficher la notification** avec cette valeur
+4. **Réglages** → **Bouton Action** → **Raccourci** → « Idée makeup ».
+
+Types possibles : `idee` (idée de look) et `theme` (thème de rêve). Pour choisir au moment de l'appui, commence le
+raccourci par **Choisir dans le menu** et mets un **Obtenir le contenu de l'URL** par choix.
