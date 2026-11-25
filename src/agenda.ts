@@ -13,14 +13,19 @@ export type Task =
   | { type: 'shoot'; makeup: Makeup; text: string; hint?: string }
   | { type: 'story' | 'prep'; text: string; hint?: string; dream?: Dream; create?: boolean } // create : rêve à créer
 
-/** Les rêves d'une semaine : celui qu'on poste, celui qu'on tourne, et le suivant (à voter). */
+/**
+ * Les rêves d'une semaine : celui qu'on poste, celui qu'on tourne, et le suivant (à voter).
+ * Le suivant est celui tourné lundi prochain : après une pause (ex. décembre), son sondage et son annonce
+ * tombent quand même le vendredi et le samedi d'avant.
+ */
 export function weekDreams(iso: string, dreams: Dream[]) {
   const monday = mondayOf(iso)
   const posting = dreams.find((d) => d.shoot_week === addDays(monday, -7)) ?? null
   const shooting = dreams.find((d) => d.shoot_week === monday) ?? null
+  const upcoming = dreams.find((d) => d.shoot_week === addDays(monday, 7)) ?? null
   const base = shooting?.no ?? (posting ? posting.no + 1 : null)
-  const nextNo = base === null ? null : base + 1
-  const next = nextNo === null ? null : (dreams.find((d) => d.no === nextNo) ?? null)
+  const nextNo = upcoming?.no ?? (base === null ? null : base + 1)
+  const next = upcoming ?? (nextNo === null ? null : (dreams.find((d) => d.no === nextNo) ?? null))
   return { monday, posting, shooting, nextNo, next }
 }
 
@@ -33,8 +38,9 @@ export function pollThemes(iso: string, themes: ThemeIdea[]) {
   return [free[a].name, free[(a + 1) % free.length].name]
 }
 
-/** Makeup encore à tourner : au moins une publication « À faire ». */
-const toShoot = (m: Makeup) => !m.abandoned_at && m.publications.some((p) => p.status === 'a_faire')
+/** Makeup encore à tourner : au moins une publication « À faire », ou aucune (look du jour pour la story, ex. calendrier). */
+const toShoot = (m: Makeup) =>
+  !m.abandoned_at && (m.publications.length === 0 || m.publications.some((p) => p.status === 'a_faire'))
 
 export function dayTasks(iso: string, pubs: Pub[], makeups: Makeup[], dreams: Dream[], themes: ThemeIdea[] = []): Task[] {
   const tasks: Task[] = pubs.filter((p) => p.date === iso).map((pub) => ({ type: 'post' as const, pub }))
@@ -44,13 +50,13 @@ export function dayTasks(iso: string, pubs: Pub[], makeups: Makeup[], dreams: Dr
     tasks.push({
       type: 'shoot',
       makeup: m,
-      text: `Tourner : ${m.title}`,
+      text: m.title,
       hint: m.dream_no ? `${slot ? `${slot.hint}. ` : ''}Story coulisses : un aperçu, une palette 👀` : (m.notes ?? undefined),
     })
   }
 
   const { posting, shooting, nextNo, next } = weekDreams(iso, dreams)
-  if (!posting && !shooting) return tasks
+  if (!posting && !shooting && !next) return tasks
   const weekday = (new Date(iso + 'T00:00').getDay() + 6) % 7 // 0 = lundi
 
   // On poste un rêve mais le suivant (à tourner cette semaine) n'existe pas encore

@@ -33,6 +33,7 @@ type Pub = {
   stats_at?: string | null
 }
 type Dream = { no: number; theme: string | null; shoot_week: string }
+type Shoot = { title: string; abandoned_at: string | null; publications: { status: string }[] }
 type Theme = { name: string; used_at: string | null }
 type Message = { title: string; body: string; tag: string; url: string }
 
@@ -72,10 +73,12 @@ function rituals(today: string, dreams: Dream[], themes: Theme[]) {
   const monday = addDays(today, -weekdayNo)
   const posting = dreams.find((d) => d.shoot_week === addDays(monday, -7))
   const shooting = dreams.find((d) => d.shoot_week === monday)
-  if (!posting && !shooting) return []
+  // Le rêve tourné lundi prochain : son sondage et son annonce tombent même après une pause
+  const upcoming = dreams.find((d) => d.shoot_week === addDays(monday, 7))
+  if (!posting && !shooting && !upcoming) return []
   const name = (d: Pick<Dream, 'no' | 'theme'>) => `Rêve n°${d.no}${d.theme ? ` · ${d.theme}` : ''}`
-  const nextNo = (shooting?.no ?? posting!.no + 1) + 1
-  const next = dreams.find((d) => d.no === nextNo)
+  const nextNo = upcoming?.no ?? (shooting?.no ?? posting!.no + 1) + 1
+  const next = upcoming ?? dreams.find((d) => d.no === nextNo)
   const lines: string[] = []
 
   if (weekdayNo === 0 && posting && !shooting) lines.push(`🌙 Crée le Rêve n°${posting.no + 1} : rien n’est prévu au tournage cette semaine`)
@@ -97,7 +100,7 @@ function rituals(today: string, dreams: Dream[], themes: Theme[]) {
  * Le matin, seulement ce qui se fait aujourd'hui (2-3 lignes) : à poster, à tourner, la story du jour,
  * une date limite vraiment urgente. Le reste (à monter, réserve, retards…) est sur l'accueil de l'appli.
  */
-function morning(pubs: Pub[], dreams: Dream[], themes: Theme[]): Message | null {
+function morning(pubs: Pub[], shoots: Shoot[], dreams: Dream[], themes: Theme[]): Message | null {
   const today = parisDate()
   const pending = pubs.filter((p) => p.status !== 'publie')
   const lines: string[] = []
@@ -107,7 +110,10 @@ function morning(pubs: Pub[], dreams: Dream[], themes: Theme[]): Message | null 
     lines.push('📤 À poster : ' + toPost.map((p) => `${label(p)} (${p.status === 'pret' ? 'prêt' : `pas prêt : ${STATUSES[p.status]}`})`).join(', '))
   }
 
-  const shoot = [...new Set(pending.filter((p) => p.status === 'a_faire' && p.makeups?.date === today).map((p) => p.makeups!.title))]
+  // Makeups du jour : à tourner (une publication « À faire »), ou look du jour sans publication (story, ex. calendrier)
+  const shoot = shoots
+    .filter((m) => !m.abandoned_at && (!m.publications.length || m.publications.some((p) => p.status === 'a_faire')))
+    .map((m) => (m.publications.length ? m.title : `${m.title} (look du jour : photo, clip, story)`))
   if (shoot.length) lines.push('🎬 À tourner : ' + shoot.join(', '))
 
   lines.push(...rituals(today, dreams, themes))
@@ -186,9 +192,14 @@ Deno.serve(async (req) => {
     // Rêves et thèmes : ignorés si les migrations 009 / 010 ne sont pas passées
     const { data: dreams } = await db.from('dreams').select('no, theme, shoot_week').eq('user_id', userId)
     const { data: themes } = await db.from('theme_ideas').select('name, used_at').eq('user_id', userId).order('created_at')
+    const { data: shoots } = await db
+      .from('makeups')
+      .select('title, abandoned_at, publications!publications_makeup_id_fkey(status)')
+      .eq('user_id', userId)
+      .eq('date', parisDate())
     // Les contenus et récaps abandonnés sont ignorés
     const active = ((pubs ?? []) as Pub[]).filter((p) => !p.abandoned_at && !p.makeups?.abandoned_at)
-    const msg = mode === 'morning' ? morning(active, (dreams ?? []) as Dream[], (themes ?? []) as Theme[]) : evening(active)
+    const msg = mode === 'morning' ? morning(active, (shoots ?? []) as Shoot[], (dreams ?? []) as Dream[], (themes ?? []) as Theme[]) : evening(active)
     if (!msg) continue
 
     for (const s of subs.filter((x) => x.user_id === userId)) {
