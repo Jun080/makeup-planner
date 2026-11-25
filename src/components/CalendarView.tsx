@@ -5,7 +5,7 @@ import { dreamLabel, STATUSES, STATUS_ORDER } from '../types'
 import type { Dream, Makeup, Pub, Status, ThemeIdea } from '../types'
 import { PubCard } from './PubCard'
 import { isLate, MiniThumb } from './PubBits'
-import { TaskList } from './TaskList'
+import { TaskGroupLabel, TaskList } from './TaskList'
 
 const WEEKDAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
 const VIEW_KEY = 'calendar-view'
@@ -174,6 +174,7 @@ export function CalendarView({
       <WeekDreams iso={selected} dreams={dreams} onOpenDream={onOpenDream} />
       <section>
         <h2>{new Date(selected + 'T00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</h2>
+        {selectedList.length > 0 && <TaskGroupLabel group="post" />}
         {selectedList.map((p) => (
           <PubCard key={p.id} pub={p} onOpen={() => onOpen(p)} onAdvance={(s) => onAdvance(p, s)} />
         ))}

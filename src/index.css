@@ -364,8 +364,10 @@ legend { font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; padding: 0; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; font-size: 0.75rem; }
 .legend span { display: inline-flex; align-items: center; gap: 5px; background: var(--surface); border: 1px solid var(--border); padding: 4px 10px 4px 6px; border-radius: 999px; }
 
-.agenda { display: flex; flex-direction: column; gap: 8px; }
-.agenda-day { display: flex; gap: 10px; align-items: stretch; }
+/* Un trait et de l'air entre les jours : chaque journée se lit comme un bloc */
+.agenda { display: flex; flex-direction: column; }
+.agenda-day { display: flex; gap: 10px; align-items: stretch; padding: 18px 0; border-top: 1px solid var(--border); }
+.agenda-day:first-child { border-top: none; padding-top: 4px; }
 .agenda-day.past { opacity: 0.5; }
 .agenda-date {
   width: 52px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -508,6 +510,18 @@ button.primary.danger-fill { background: var(--danger); border-color: var(--dang
   width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center;
   background: var(--surface-2);
 }
+/* Les 3 groupes d'une journée : posts, tournages, stories */
+.task-group { display: flex; flex-direction: column; gap: 6px; }
+.task-group + .task-group { margin-top: 6px; }
+.task-group-label {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px;
+  font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--on-pastel);
+}
+.label-post { background: var(--sky); }
+.label-shoot { background: var(--peach); }
+.label-other { background: var(--pink); }
+/* Tournage : carte pêche pleine (les posts restent des cartes blanches avec leur étape) */
+.task-shoot { background: color-mix(in srgb, var(--peach) 38%, var(--surface)); border: 1px solid color-mix(in srgb, var(--peach) 70%, var(--surface)); }
 .task-shoot .task-icon { background: var(--peach); color: var(--on-pastel); }
 .task-story .task-icon { background: var(--pink); color: var(--on-pastel); }
 .task-prep .task-icon { background: var(--butter); color: var(--on-pastel); }
